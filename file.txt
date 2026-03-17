@@ -1,3 +1,33 @@
+spec:
+  inputs:
+    accelq_api_key:
+      type: string
+      description: "Your ACCELQ API Key"
+    accelq_user:
+      type: string
+      description: "Your ACCELQ Email"
+    jira_user_email:
+      type: string
+      description: "Your Jira Email"
+    jira_api_token:
+      type: string
+      description: "Your Jira API Token"
+    xray_id:
+      type: string
+      description: "Your Xray Client ID"
+    xray_secret:
+      type: string
+      description: "Your Xray Client Secret"
+    accel_domain:
+      type: string
+      default: "navigate.accelq.io" # Change to your actual domain
+    accel_tenant:
+      type: string
+      default: "123" # Change to your actual tenant ID
+    jira_domain:
+      type: string
+      default: "company.atlassian.net" # Change to your actual Jira URL
+---
 stages:
   - sync_results
 
@@ -5,11 +35,11 @@ sync_to_xray:
   stage: sync_results
   image: curlimages/curl:latest
   script:
-    # 1. Fetch ACCELQ Run Data
+    # 1. Fetch ACCELQ Run Data (Notice ACCELQ_RUN_ID remains a standard variable)
     - |
-      RUN_DATA=$(curl -s -X GET "https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID" \
-      -H "api_key: $ACCELQ_API_KEY" \
-      -H "user_id: $ACCEL_USER")
+      RUN_DATA=$(curl -s -X GET "https://$[[ inputs.accel_domain ]]/api/1.0/$[[ inputs.accel_tenant ]]/runs/$ACCELQ_RUN_ID" \
+      -H "api_key: $[[ inputs.accelq_api_key ]]" \
+      -H "user_id: $[[ inputs.accelq_user ]]")
 
     # 2. Logic: Detect if this is a Mobile or Browser run from the Run Name
     - |
@@ -21,7 +51,7 @@ sync_to_xray:
     # 3. Get Xray Auth Token
     - |
       XRAY_TOKEN=$(curl -s -H "Content-Type: application/json" \
-      -X POST --data "{ \"client_id\": \"$XRAY_ID\", \"client_secret\": \"$XRAY_SECRET\" }" \
+      -X POST --data "{ \"client_id\": \"$[[ inputs.xray_id ]]\", \"client_secret\": \"$[[ inputs.xray_secret ]]\" }" \
       https://xray.cloud.getxray.app/api/v2/authenticate | tr -d '"')
 
     # 4. Loop through Scenarios
@@ -36,8 +66,8 @@ sync_to_xray:
 
         for KEY in $ALL_KEYS; do
           # Query Jira for the Issue Type and the Summary (Title)
-          JIRA_DATA=$(curl -s -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
-            -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
+          JIRA_DATA=$(curl -s -u "$[[ inputs.jira_user_email ]]:$[[ inputs.jira_api_token ]]" \
+            -X GET "https://$[[ inputs.jira_domain ]]/rest/api/2/issue/$KEY?fields=issuetype,summary")
           
           TYPE=$(echo "$JIRA_DATA" | jq -r '.fields.issuetype.name')
           SUMMARY=$(echo "$JIRA_DATA" | jq -r '.fields.summary')
