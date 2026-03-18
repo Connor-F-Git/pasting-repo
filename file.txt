@@ -1,33 +1,32 @@
-spec:
-  inputs:
-    accelq_api_key:
-      type: string
-      description: "Your ACCELQ API Key"
-    accelq_user:
-      type: string
-      description: "Your ACCELQ Email"
-    jira_user_email:
-      type: string
-      description: "Your Jira Email"
-    jira_api_token:
-      type: string
-      description: "Your Jira API Token"
-    xray_id:
-      type: string
-      description: "Your Xray Client ID"
-    xray_secret:
-      type: string
-      description: "Your Xray Client Secret"
-    accel_domain:
-      type: string
-      default: "navigate.accelq.io" # Change to your actual domain
-    accel_tenant:
-      type: string
-      default: "123" # Change to your actual tenant ID
-    jira_domain:
-      type: string
-      default: "company.atlassian.net" # Change to your actual Jira URL
----
+variables:
+  ACCELQ_API_KEY:
+    value: ""
+    description: "Your ACCELQ API Key"
+  ACCELQ_USER:
+    value: ""
+    description: "Your ACCELQ Email"
+  JIRA_USER_EMAIL:
+    value: ""
+    description: "Your Jira Email"
+  JIRA_API_TOKEN:
+    value: ""
+    description: "Your Jira API Token"
+  XRAY_ID:
+    value: ""
+    description: "Your Xray Client ID"
+  XRAY_SECRET:
+    value: ""
+    description: "Your Xray Client Secret"
+  ACCEL_DOMAIN:
+    value: "navigate.accelq.io"
+    description: "Your ACCELQ Domain"
+  ACCEL_TENANT:
+    value: "123"
+    description: "Your ACCELQ Tenant ID"
+  JIRA_DOMAIN:
+    value: "company.atlassian.net"
+    description: "Your Jira URL"
+
 stages:
   - sync_results
 
@@ -35,11 +34,11 @@ sync_to_xray:
   stage: sync_results
   image: curlimages/curl:latest
   script:
-    # 1. Fetch ACCELQ Run Data (Notice ACCELQ_RUN_ID remains a standard variable)
+    # 1. Fetch ACCELQ Run Data (ACCELQ_RUN_ID comes from the webhook payload or manual input)
     - |
-      RUN_DATA=$(curl -s -X GET "https://$[[ inputs.accel_domain ]]/api/1.0/$[[ inputs.accel_tenant ]]/runs/$ACCELQ_RUN_ID" \
-      -H "api_key: $[[ inputs.accelq_api_key ]]" \
-      -H "user_id: $[[ inputs.accelq_user ]]")
+      RUN_DATA=$(curl -s -X GET "https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID" \
+      -H "api_key: $ACCELQ_API_KEY" \
+      -H "user_id: $ACCELQ_USER")
 
     # 2. Logic: Detect if this is a Mobile or Browser run from the Run Name
     - |
@@ -51,7 +50,7 @@ sync_to_xray:
     # 3. Get Xray Auth Token
     - |
       XRAY_TOKEN=$(curl -s -H "Content-Type: application/json" \
-      -X POST --data "{ \"client_id\": \"$[[ inputs.xray_id ]]\", \"client_secret\": \"$[[ inputs.xray_secret ]]\" }" \
+      -X POST --data "{ \"client_id\": \"$XRAY_ID\", \"client_secret\": \"$XRAY_SECRET\" }" \
       https://xray.cloud.getxray.app/api/v2/authenticate | tr -d '"')
 
     # 4. Loop through Scenarios
@@ -65,14 +64,12 @@ sync_to_xray:
         EXECUTION_KEY=""
 
         for KEY in $ALL_KEYS; do
-          # Query Jira for the Issue Type and the Summary (Title)
-          JIRA_DATA=$(curl -s -u "$[[ inputs.jira_user_email ]]:$[[ inputs.jira_api_token ]]" \
-            -X GET "https://$[[ inputs.jira_domain ]]/rest/api/2/issue/$KEY?fields=issuetype,summary")
+          JIRA_DATA=$(curl -s -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+            -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
           
           TYPE=$(echo "$JIRA_DATA" | jq -r '.fields.issuetype.name')
           SUMMARY=$(echo "$JIRA_DATA" | jq -r '.fields.summary')
 
-          # Filter: Only pick the Execution ticket that matches the "Target" environment
           if [ "$TYPE" == "Test Execution" ] && echo "$SUMMARY" | grep -iq "$TARGET"; then
             EXECUTION_KEY=$KEY
           elif [ "$TYPE" == "Test" ]; then
@@ -80,7 +77,7 @@ sync_to_xray:
           fi
         done
 
-        # 5. Push to Xray if matches found
+        # 5. Push to Xray
         if [ ! -z "$EXECUTION_KEY" ] && [ ! -z "$TEST_KEYS_JSON" ]; then
           TEST_KEYS_JSON=$(echo $TEST_KEYS_JSON | sed 's/,$//')
           PAYLOAD="{\"testExecutionKey\":\"$EXECUTION_KEY\",\"tests\":[$TEST_KEYS_JSON]}"
