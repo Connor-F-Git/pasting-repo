@@ -19,36 +19,19 @@ sync_to_xray:
         chmod +x ./jq
       fi
   script:
-    - JQ_EXEC=$(command -v jq || echo "./jq")
-    - echo "Requesting data from ACCELQ for Run ID $ACCELQ_RUN_ID..."
+    - "JQ_EXEC=$(command -v jq || echo './jq')"
+    - "echo 'Fetching data for Run ID: $ACCELQ_RUN_ID'"
     
-    # 1. Fetch ACCELQ Run Data with Debugging
-    - |
-      RUN_DATA=$(curl -s -k -X GET "https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID" \
-        -H "api_key: $ACCELQ_API_KEY" \
-        -H "user_id: $ACCELQ_USER")
-      
-      # DEBUG: Check if RUN_DATA is valid JSON
-      if [[ -z "$RUN_DATA" ]]; then
-        echo "ERROR: ACCELQ returned an empty response. Check your ACCEL_DOMAIN and ACCEL_TENANT."
-        exit 1
-      fi
-      
-      echo "First 100 chars of response: ${RUN_DATA:0:100}"
-      
-      if [[ "$RUN_DATA" == *"html"* ]]; then
-        echo "ERROR: Received HTML instead of JSON. This usually means a 401 Unauthorized or 404 Not Found."
-        echo "Check if your API Key and User ID are correct."
-        exit 1
-      fi
-
-    # 2. Extract Run Name
-    - RUN_NAME=$(echo "$RUN_DATA" | $JQ_EXEC -r '.runName')
-    - echo "Run Name identified: $RUN_NAME"
+    # 1. Fetch ACCELQ Run Data
+    - "RUN_DATA=$(curl -s -k -X GET \"https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID\" -H \"api_key: $ACCELQ_API_KEY\" -H \"user_id: $ACCELQ_USER\")"
     
-    # 3. Target Filter
-    - if [[ "$RUN_NAME" =~ [Mm]obile ]]; then TARGET="Mobile"; else TARGET="Browser"; fi
-    - echo "Targeting Jira tickets containing: $TARGET"
+    # 2. Debugging: This syntax is now wrapped in quotes to prevent YAML errors
+    - "echo \"Raw Response Snippet: ${RUN_DATA}\" | cut -c 1-100"
+    
+    # 3. Logic: Extract Run Name and Set Target
+    - "RUN_NAME=$(echo \"$RUN_DATA\" | $JQ_EXEC -r '.runName')"
+    - "if [[ \"$RUN_NAME\" =~ [Mm]obile ]]; then TARGET='Mobile'; else TARGET='Browser'; fi"
+    - "echo \"Targeting Jira tickets containing: $TARGET\""
 
     # 4. Loop through Scenarios
     - |
@@ -62,18 +45,24 @@ sync_to_xray:
         TEST_KEYS_JSON=""
         
         for KEY in $ALL_KEYS; do
+          # Fetch Issue details from Jira Server
           JIRA_DATA=$(curl -s -k -H "Authorization: Bearer $JIRA_PAT" -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
           TYPE=$(echo "$JIRA_DATA" | $JQ_EXEC -r '.fields.issuetype.name')
           SUMMARY=$(echo "$JIRA_DATA" | $JQ_EXEC -r '.fields.summary')
           
-          if [[ "$TYPE" == "Test Execution" && "$SUMMARY" =~ $TARGET ]]; then EXECUTION_KEY=$KEY; fi
-          if [[ "$TYPE" == "Test" ]]; then TEST_KEYS_JSON="${TEST_KEYS_JSON}{\"testKey\":\"$KEY\",\"status\":\"$XRAY_STATUS\"},"; fi
+          if [[ "$TYPE" == "Test Execution" && "$SUMMARY" =~ $TARGET ]]; then 
+            EXECUTION_KEY=$KEY
+          elif [[ "$TYPE" == "Test" ]]; then 
+            TEST_KEYS_JSON="${TEST_KEYS_JSON}{\"testKey\":\"$KEY\",\"status\":\"$XRAY_STATUS\"},"
+          fi
         done
         
         if [[ -n "$EXECUTION_KEY" && -n "$TEST_KEYS_JSON" ]]; then
           TEST_KEYS_JSON=$(echo "$TEST_KEYS_JSON" | sed 's/,$//')
           PAYLOAD="{\"testExecutionKey\":\"$EXECUTION_KEY\",\"tests\":[$TEST_KEYS_JSON]}"
           curl -s -k -H "Authorization: Bearer $JIRA_PAT" -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "https://$JIRA_DOMAIN/rest/xray/2.0/api/import/execution"
-          echo "Successfully updated $EXECUTION_KEY for $SCENARIO_NAME"
+          echo "Updated $EXECUTION_KEY for $SCENARIO_NAME"
+        else
+          echo "Skipped $SCENARIO_NAME: No $TARGET Execution found in Jira keys: $ALL_KEYS"
         fi
       done
