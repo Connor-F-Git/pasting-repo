@@ -5,18 +5,6 @@ variables:
   ACCELQ_USER:
     value: ""
     description: "Your ACCELQ Email"
-  JIRA_USER_EMAIL:
-    value: ""
-    description: "Your Jira Email"
-  JIRA_API_TOKEN:
-    value: ""
-    description: "Your Jira API Token"
-  XRAY_ID:
-    value: ""
-    description: "Your Xray Client ID"
-  XRAY_SECRET:
-    value: ""
-    description: "Your Xray Client Secret"
   ACCEL_DOMAIN:
     value: "navigate.accelq.io"
     description: "Your ACCELQ Domain"
@@ -24,47 +12,60 @@ variables:
     value: "123"
     description: "Your ACCELQ Tenant ID"
   JIRA_DOMAIN:
-    value: "company.atlassian.net"
-    description: "Your Jira URL"
+    value: "jira.yourcompany.com"
+    description: "Your Jira Server/DC URL (Do not include https://)"
+  JIRA_PAT:
+    value: ""
+    description: "Your Jira Personal Access Token"
+  ACCELQ_RUN_ID:
+    value: ""
+    description: "The ID of the ACCELQ run you want to sync"
 
 stages:
   - sync_results
 
 sync_to_xray:
   stage: sync_results
-  image: curlimages/curl:latest
+  image: alpine:latest
+  before_script:
+    # Ensures both curl and jq are available for the script
+    - apk add --no-cache curl jq
   script:
-    # 1. Fetch ACCELQ Run Data (ACCELQ_RUN_ID comes from the webhook payload or manual input)
+    - echo "Fetching ACCELQ Run Data for Run ID $ACCELQ_RUN_ID..."
+    # 1. Fetch ACCELQ Run Data
     - |
       RUN_DATA=$(curl -s -X GET "https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID" \
       -H "api_key: $ACCELQ_API_KEY" \
       -H "user_id: $ACCELQ_USER")
 
-    # 2. Logic: Detect if this is a Mobile or Browser run from the Run Name
+    # 2. Logic: Detect Target (Mobile/Browser) from the runName
     - |
       RUN_NAME=$(echo "$RUN_DATA" | jq -r '.runName')
-      echo "Detected Run: $RUN_NAME"
-      [[ "$RUN_NAME" =~ [Mm]obile ]] && TARGET="Mobile" || TARGET="Browser"
-      echo "Only updating Jira tickets containing: $TARGET"
+      echo "Detected Run Name: $RUN_NAME"
+      if [[ "$RUN_NAME" =~ [Mm]obile ]]; then
+        TARGET="Mobile"
+      else
+        TARGET="Browser"
+      fi
+      echo "Targeting Jira tickets containing: $TARGET"
 
-    # 3. Get Xray Auth Token
+    # 3. Loop through Scenarios
     - |
-      XRAY_TOKEN=$(curl -s -H "Content-Type: application/json" \
-      -X POST --data "{ \"client_id\": \"$XRAY_ID\", \"client_secret\": \"$XRAY_SECRET\" }" \
-      https://xray.cloud.getxray.app/api/v2/authenticate | tr -d '"')
-
-    # 4. Loop through Scenarios
-    - |
-      echo "$RUN_DATA" | jq -c '.testCases[]' | while read scenario; do
-        STATUS=$(echo $scenario | jq -r '.testStatus')
-        [ "$STATUS" == "PASS" ] && XRAY_STATUS="PASSED" || XRAY_STATUS="FAILED"
+      echo "$RUN_DATA" | jq -c '.testCases[]' | while read -r scenario; do
+        STATUS=$(echo "$scenario" | jq -r '.testStatus')
+        if [ "$STATUS" == "PASS" ]; then
+          XRAY_STATUS="PASS"
+        else
+          XRAY_STATUS="FAIL"
+        fi
         
-        ALL_KEYS=$(echo $scenario | jq -r '.jiraIssues[]')
+        ALL_KEYS=$(echo "$scenario" | jq -r '.jiraIssues[]')
         TEST_KEYS_JSON=""
         EXECUTION_KEY=""
 
         for KEY in $ALL_KEYS; do
-          JIRA_DATA=$(curl -s -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+          # Use JIRA_PAT to check Jira Issue Type
+          JIRA_DATA=$(curl -s -H "Authorization: Bearer $JIRA_PAT" \
             -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
           
           TYPE=$(echo "$JIRA_DATA" | jq -r '.fields.issuetype.name')
@@ -77,15 +78,16 @@ sync_to_xray:
           fi
         done
 
-        # 5. Push to Xray
+        # 4. Push to Xray Server API
         if [ ! -z "$EXECUTION_KEY" ] && [ ! -z "$TEST_KEYS_JSON" ]; then
-          TEST_KEYS_JSON=$(echo $TEST_KEYS_JSON | sed 's/,$//')
+          # Remove trailing comma from JSON array
+          TEST_KEYS_JSON=$(echo "$TEST_KEYS_JSON" | sed 's/,$//')
           PAYLOAD="{\"testExecutionKey\":\"$EXECUTION_KEY\",\"tests\":[$TEST_KEYS_JSON]}"
           
-          curl -s -H "Authorization: Bearer $XRAY_TOKEN" \
+          echo "Pushing results to Xray Server for Execution: $EXECUTION_KEY"
+          curl -s -H "Authorization: Bearer $JIRA_PAT" \
                -H "Content-Type: application/json" \
-               -X POST --data "$PAYLOAD" \
-               "https://xray.cloud.getxray.app/api/v2/import/execution"
-          echo "Updated $EXECUTION_KEY for tests associated with this scenario."
+               -X POST -d "$PAYLOAD" \
+               "https://$JIRA_DOMAIN/rest/xray/2.0/api/import/execution"
         fi
       done
