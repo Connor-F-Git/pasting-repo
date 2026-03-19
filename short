@@ -13,25 +13,36 @@ stages:
 sync_to_xray:
   stage: sync_results
   before_script:
-    - yum install -y curl jq || true
+    - echo "Checking for jq..."
+    - |
+      if ! command -v jq &> /dev/null; then
+        echo "jq not found. Downloading portable version..."
+        curl -L -s -o ./jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        chmod +x ./jq
+        alias jq='./jq'
+      else
+        echo "jq is already installed."
+      fi
   script:
+    # Use the alias or local path for jq
+    - JQ_EXEC=$(command -v jq || echo "./jq")
     - echo "Fetching ACCELQ Run Data for ID $ACCELQ_RUN_ID"
     - RUN_DATA=$(curl -s -k -X GET "https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID" -H "api_key:$ACCELQ_API_KEY" -H "user_id:$ACCELQ_USER")
-    - RUN_NAME=$(echo "$RUN_DATA" | jq -r '.runName')
+    - RUN_NAME=$(echo "$RUN_DATA" | $JQ_EXEC -r '.runName')
     - if [[ "$RUN_NAME" =~ [Mm]obile ]]; then TARGET="Mobile"; else TARGET="Browser"; fi
     - echo "Target Filter set to $TARGET"
     - |
-      echo "$RUN_DATA" | jq -c '.testCases[]' | while read -r scenario; do
-        SCENARIO_NAME=$(echo "$scenario" | jq -r '.scenarioName')
-        STATUS=$(echo "$scenario" | jq -r '.testStatus')
+      echo "$RUN_DATA" | $JQ_EXEC -c '.testCases[]' | while read -r scenario; do
+        SCENARIO_NAME=$(echo "$scenario" | $JQ_EXEC -r '.scenarioName')
+        STATUS=$(echo "$scenario" | $JQ_EXEC -r '.testStatus')
         XRAY_STATUS="FAIL"; [ "$STATUS" == "PASS" ] && XRAY_STATUS="PASS"
-        ALL_KEYS=$(echo "$scenario" | jq -r '.jiraIssues[]')
+        ALL_KEYS=$(echo "$scenario" | $JQ_EXEC -r '.jiraIssues[]')
         EXECUTION_KEY=""
         TEST_KEYS_JSON=""
         for KEY in $ALL_KEYS; do
           JIRA_DATA=$(curl -s -k -H "Authorization: Bearer $JIRA_PAT" -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
-          TYPE=$(echo "$JIRA_DATA" | jq -r '.fields.issuetype.name')
-          SUMMARY=$(echo "$JIRA_DATA" | jq -r '.fields.summary')
+          TYPE=$(echo "$JIRA_DATA" | $JQ_EXEC -r '.fields.issuetype.name')
+          SUMMARY=$(echo "$JIRA_DATA" | $JQ_EXEC -r '.fields.summary')
           if [[ "$TYPE" == "Test Execution" && "$SUMMARY" =~ $TARGET ]]; then EXECUTION_KEY=$KEY; fi
           if [[ "$TYPE" == "Test" ]]; then TEST_KEYS_JSON="${TEST_KEYS_JSON}{\"testKey\":\"$KEY\",\"status\":\"$XRAY_STATUS\"},"; fi
         done
