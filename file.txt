@@ -1,98 +1,19 @@
-variables:
-  ACCELQ_API_KEY:
-    value: ""
-    description: "Your ACCELQ API Key"
-  ACCELQ_USER:
-    value: ""
-    description: "Your ACCELQ Email"
-  ACCEL_DOMAIN:
-    value: "navigate.accelq.io"
-    description: "Your ACCELQ Domain"
-  ACCEL_TENANT:
-    value: "123"
-    description: "Your ACCELQ Tenant ID"
-  JIRA_DOMAIN:
-    value: "jira.yourcompany.com"
-    description: "Your Jira Server/DC URL (Do not include https://)"
-  JIRA_PAT:
-    value: ""
-    description: "Your Jira Personal Access Token"
-  ACCELQ_RUN_ID:
-    value: ""
-    description: "The ID of the ACCELQ run you want to sync"
-
-stages:
-  - sync_results
-
-sync_to_xray:
-  stage: sync_results
-  before_script:
-    - echo "Installing dependencies on Amazon Linux 2..."
-    # Using 'command -v' to check if they already exist to save time
-    - |
-      if ! command -v jq &> /dev/null; then
-        sudo amazon-linux-extras install epel -y || true
-        sudo yum install -y jq
+- |
+      RUN_PIDS=$(echo "$RUNS_RESPONSE" | jq -r '.data[].runPid')
+      if [ -z "$RUN_PIDS" ]; then
+        echo "No run PIDs found in response."
+        exit 1
       fi
-  script:
-    - |
-      set -e # Exit on any error
-      echo "Fetching ACCELQ Run Data for ID: $ACCELQ_RUN_ID"
-      
-      # 1. Fetch ACCELQ Run Data
-      RUN_DATA=$(curl -s -k -X GET "https://$ACCEL_DOMAIN/api/1.0/$ACCEL_TENANT/runs/$ACCELQ_RUN_ID" \
-        -H "api_key: $ACCELQ_API_KEY" \
-        -H "user_id: $ACCELQ_USER")
 
-      # 2. Logic: Detect Target (Mobile vs Browser)
-      RUN_NAME=$(echo "$RUN_DATA" | jq -r '.runName')
-      echo "Run Name: $RUN_NAME"
-      
-      if [[ "$RUN_NAME" =~ [Mm]obile ]]; then
-        TARGET="Mobile"
-      else
-        TARGET="Browser"
-      fi
-      echo "Target Filter: $TARGET"
+      for RUN_PID in $RUN_PIDS; do
+        echo "--- Run PID: ${RUN_PID} ---"
+        RUN_STATUS=$(curl --fail -s -X GET "${ACCELQ_RUN_STATUS_URL}/${RUN_PID}" \
+          -H "api_key: ${ACCELQ_API_KEY}" \
+          -H "user_id: ${ACCELQ_USER_ID}" \
+          -H "Content-Type: application/json" \
+          -H "Accept: application/json")
 
-      # 3. Loop through Scenarios
-      echo "$RUN_DATA" | jq -c '.testCases[]' | while read -r scenario; do
-        SCENARIO_NAME=$(echo "$scenario" | jq -r '.scenarioName')
-        STATUS=$(echo "$scenario" | jq -r '.testStatus')
-        XRAY_STATUS=$([ "$STATUS" == "PASS" ] && echo "PASS" || echo "FAIL")
-        
-        echo "Processing Scenario: $SCENARIO_NAME ($XRAY_STATUS)"
-        
-        ALL_KEYS=$(echo "$scenario" | jq -r '.jiraIssues[]')
-        TEST_KEYS_JSON=""
-        EXECUTION_KEY=""
-
-        for KEY in $ALL_KEYS; do
-          # Get Issue Details from Jira Server
-          JIRA_DATA=$(curl -s -k -H "Authorization: Bearer $JIRA_PAT" \
-            -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
-          
-          TYPE=$(echo "$JIRA_DATA" | jq -r '.fields.issuetype.name')
-          SUMMARY=$(echo "$JIRA_DATA" | jq -r '.fields.summary')
-
-          if [[ "$TYPE" == "Test Execution" && "$SUMMARY" =~ $TARGET ]]; then
-            EXECUTION_KEY=$KEY
-          elif [[ "$TYPE" == "Test" ]]; then
-            TEST_KEYS_JSON="${TEST_KEYS_JSON}{\"testKey\":\"$KEY\",\"status\":\"$XRAY_STATUS\"},"
-          fi
-        done
-
-        # 4. Push to Xray if we have both an Execution and Tests
-        if [[ -n "$EXECUTION_KEY" && -n "$TEST_KEYS_JSON" ]]; then
-          TEST_KEYS_JSON=$(echo "$TEST_KEYS_JSON" | sed 's/,$//')
-          PAYLOAD="{\"testExecutionKey\":\"$EXECUTION_KEY\",\"tests\":[$TEST_KEYS_JSON]}"
-          
-          echo "Updating Xray Execution: $EXECUTION_KEY"
-          curl -s -k -H "Authorization: Bearer $JIRA_PAT" \
-               -H "Content-Type: application/json" \
-               -X POST -d "$PAYLOAD" \
-               "https://$JIRA_DOMAIN/rest/xray/2.0/api/import/execution"
-        else
-          echo "  -> Skip: Missing linked Test Execution for $TARGET"
-        fi
+        echo "Overall status: $(echo "$RUN_STATUS" | jq -r '.summary.status')"
+        echo "Completed test cases (pass/fail):"
+        echo "$RUN_STATUS" | jq '[.summary.testCaseSummaryList[] | select(.status == "pass" or .status == "fail") | {name, status, startDate, endDate}]'
       done
