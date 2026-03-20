@@ -1,19 +1,81 @@
-- |
+script:
+    # ── Step 1: Get all AccelQ run PIDs for this job ─────────────────────────
+    - |
+      echo "==> Fetching AccelQ runs for job PID ${ACCELQ_JOB_PID}..."
+      echo "    Targeting Jira Test Execution: ${TEST_EXECUTION_KEY}"
+      RUNS_RESPONSE=$(curl --fail -s -X POST "${ACCELQ_EXT_URL}/runs" \
+        -H "api_key: ${ACCELQ_API_KEY}" \
+        -H "user_id: ${ACCELQ_USER_ID}" \
+        -H "Content-Type: application/json" \
+        -d "{\"pageNum\": 1, \"pageSize\": 100, \"filter\": {\"jobPidList\": [${ACCELQ_JOB_PID}]}}")
+
       RUN_PIDS=$(echo "$RUNS_RESPONSE" | jq -r '.data[].runPid')
       if [ -z "$RUN_PIDS" ]; then
-        echo "No run PIDs found in response."
+        echo "ERROR: No run PIDs found for job PID ${ACCELQ_JOB_PID}."
         exit 1
       fi
 
+    # ── Step 2: For each run, loop over scenarios and update Xray ────────────
+    - |
       for RUN_PID in $RUN_PIDS; do
-        echo "--- Run PID: ${RUN_PID} ---"
-        RUN_STATUS=$(curl --fail -s -X GET "${ACCELQ_RUN_STATUS_URL}/${RUN_PID}" \
+        echo ""
+        echo "==> Processing AccelQ run PID: ${RUN_PID}"
+
+        RUN_DETAIL=$(curl --fail -s -X GET "${ACCELQ_RUN_STATUS_URL}/${RUN_PID}" \
           -H "api_key: ${ACCELQ_API_KEY}" \
           -H "user_id: ${ACCELQ_USER_ID}" \
-          -H "Content-Type: application/json" \
           -H "Accept: application/json")
 
-        echo "Overall status: $(echo "$RUN_STATUS" | jq -r '.summary.status')"
-        echo "Completed test cases (pass/fail):"
-        echo "$RUN_STATUS" | jq '[.summary.testCaseSummaryList[] | select(.status == "pass" or .status == "fail") | {name, status, startDate, endDate}]'
+        echo "    Overall status: $(echo "$RUN_DETAIL" | jq -r '.summary.status')"
+
+        # Each testCaseSummaryList entry is one AccelQ scenario.
+        # Cross-reference scnPid → scenarioList[].dbPid to get jiraStoryList,
+        # which contains the Jira test case keys linked via requirement traceability.
+        # Skip scenarios that did not run.
+        echo "$RUN_DETAIL" | jq -c '
+          .summary as $run |
+          $run.testCaseSummaryList[] |
+          select(.status == "pass" or .status == "fail") |
+          . as $tc |
+          {
+            name: $tc.name,
+            status: ($tc.status | ascii_upcase),
+            jiraKeys: [$run.scenarioList[] | select(.dbPid == $tc.scnPid) | .jiraStoryList[]]
+          }
+        ' | while IFS= read -r scenario; do
+          SCENARIO_NAME=$(echo "$scenario" | jq -r '.name')
+          SCENARIO_STATUS=$(echo "$scenario" | jq -r '.status')
+          JIRA_TEST_KEYS=$(echo "$scenario" | jq -r '.jiraKeys[]')
+
+          if [ -z "$JIRA_TEST_KEYS" ]; then
+            echo "    [SKIP] No linked Jira test cases for scenario: \"${SCENARIO_NAME}\""
+            continue
+          fi
+
+          # Update every linked Jira test case in the Test Execution
+          for JIRA_TEST_KEY in $JIRA_TEST_KEYS; do
+            TESTRUN_ID=$(curl -s \
+              -H "Authorization: Bearer ${JIRA_PAT}" \
+              -H "Accept: application/json" \
+              "${JIRA_BASE_URL}/rest/raven/1.0/api/testrun?testExecIssueKey=${TEST_EXECUTION_KEY}&testIssueKey=${JIRA_TEST_KEY}" \
+              | jq -r '.id // empty')
+
+            if [ -z "$TESTRUN_ID" ]; then
+              echo "    [WARN] No test run found for ${JIRA_TEST_KEY} in ${TEST_EXECUTION_KEY} (scenario: \"${SCENARIO_NAME}\")"
+              continue
+            fi
+
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+              -H "Authorization: Bearer ${JIRA_PAT}" \
+              -H "Content-Type: application/json" \
+              "${JIRA_BASE_URL}/rest/raven/1.0/api/testrun/${TESTRUN_ID}/status" \
+              -d "{\"status\": \"${SCENARIO_STATUS}\"}")
+
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "    [OK]   ${JIRA_TEST_KEY} <- scenario \"${SCENARIO_NAME}\" -> ${SCENARIO_STATUS}"
+            else
+              echo "    [FAIL] ${JIRA_TEST_KEY} <- scenario \"${SCENARIO_NAME}\" -> HTTP ${HTTP_STATUS}"
+            fi
+          done
+        done
       done
