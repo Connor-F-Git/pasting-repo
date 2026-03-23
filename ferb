@@ -1,0 +1,115 @@
+variables:
+  ACCELQ_EMAIL:
+    value: "a@a.com"
+    description: "ACCELQ Email"
+  ACCELQ_DOMAIN:
+    value: "a"
+    description: "ACCELQ Domain (after https:// but before /project)"
+  ACCELQ_API_KEY:
+    value: "a"
+    description: "Your personal ACCELQ API Key (Found in Auth Properties)"
+  ACCELQ_PROJECT:
+    value: "a"
+    description: "ACCELQ Project Code (Found in Auth Properties)"
+  ACCELQ_TENANT:
+    value: "a"
+    description: "ACCELQ Tenant Code (Found in Auth Properties)"
+  JIRA_DOMAIN:
+    value: "a"
+    description: "Jira Server/DC URL (Do not include https://)"
+  JIRA_PAT:
+    value: "a"
+    description: "Your Jira Personal Access Token (Create one in Jira Profile -> Personal Access Tokens -> Create Token)"
+
+stages:
+  - sync_results
+
+sync_results:
+  stage: sync_results
+  before_script:
+    - |
+      if ! command -v jq &> /dev/null; then
+        curl -L -o ./jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        chmod +x ./jq
+      fi
+  script:
+      # ── Step 1: Get all AccelQ run PIDs for this job ─────────────────────────
+      - |
+        echo "==> Fetching AccelQ runs for job PID ${ACCELQ_JOB_PID}..."
+        echo "    Targeting Jira Test Execution: ${TEST_EXECUTION_KEY}"
+        RUNS_RESPONSE=$(curl -X POST "https://$ACCELQ_DOMAIN/awb/api/$ACCELQ_TENANT/$ACCELQ_PROJECT/v1/ext-access/runs" \
+          -H "api_key: ${ACCELQ_API_KEY}" \
+          -H "user_id: ${ACCELQ_USER_ID}" \
+          -H "Content-Type: application/json" \
+          -d "{\"pageNum\": 1, \"pageSize\": 100, \"filter\": {\"jobPidList\": [${ACCELQ_JOB_PID}]}}")
+
+        RUN_PIDS=$(echo "$RUNS_RESPONSE" | jq -r '.data[].runPid')
+        if [ -z "$RUN_PIDS" ]; then
+          echo "ERROR: No run PIDs found for job PID ${ACCELQ_JOB_PID}."
+          exit 1
+        fi
+
+      # ── Step 2: For each run, loop over scenarios and update Xray ────────────
+      - |
+        for RUN_PID in $RUN_PIDS; do
+          echo ""
+          echo "==> Processing AccelQ run PID: ${RUN_PID}"
+
+          RUN_DETAIL=$(curl -X GET "${ACCELQ_RUN_STATUS_URL}/${RUN_PID}" \
+            -H "api_key: ${ACCELQ_API_KEY}" \
+            -H "user_id: ${ACCELQ_USER_ID}" \
+            -H "Accept: application/json")
+
+          echo "    Overall status: $(echo "$RUN_DETAIL" | jq -r '.summary.status')"
+
+          # Each testCaseSummaryList entry is one AccelQ scenario.
+          # Cross-reference scnPid → scenarioList[].dbPid to get jiraStoryList,
+          # which contains the Jira test case keys linked via requirement traceability.
+          # Skip scenarios that did not run.
+          echo "$RUN_DETAIL" | jq -c '
+            .summary as $run |
+            $run.testCaseSummaryList[] |
+            select(.status == "pass" or .status == "fail") |
+            . as $tc |
+            {
+              name: $tc.name,
+              status: ($tc.status | ascii_upcase),
+              jiraKeys: [$run.scenarioList[] | select(.dbPid == $tc.scnPid) | .jiraStoryList[]]
+            }
+          ' | while IFS= read -r scenario; do
+            SCENARIO_NAME=$(echo "$scenario" | jq -r '.name')
+            SCENARIO_STATUS=$(echo "$scenario" | jq -r '.status')
+            JIRA_TEST_KEYS=$(echo "$scenario" | jq -r '.jiraKeys[]')
+
+            if [ -z "$JIRA_TEST_KEYS" ]; then
+              echo "    [SKIP] No linked Jira test cases for scenario: \"${SCENARIO_NAME}\""
+              continue
+            fi
+
+            # Update every linked Jira test case in the Test Execution
+            for JIRA_TEST_KEY in $JIRA_TEST_KEYS; do
+              TESTRUN_ID=$(curl \
+                -H "Authorization: Bearer ${JIRA_PAT}" \
+                -H "Accept: application/json" \
+                "https://${JIRA_DOMAIN}/rest/raven/1.0/api/testrun?testExecIssueKey=${TEST_EXECUTION_KEY}&testIssueKey=${JIRA_TEST_KEY}" \
+                | jq -r '.id // empty')
+
+              if [ -z "$TESTRUN_ID" ]; then
+                echo "    [WARN] No test run found for ${JIRA_TEST_KEY} in ${TEST_EXECUTION_KEY} (scenario: \"${SCENARIO_NAME}\")"
+                continue
+              fi
+
+              HTTP_STATUS=$(curl -o /dev/null -w "%{http_code}" -X PUT \
+                -H "Authorization: Bearer ${JIRA_PAT}" \
+                -H "Content-Type: application/json" \
+                "https://${JIRA_DOMAIN}/rest/raven/1.0/api/testrun/${TESTRUN_ID}/status" \
+                -d "{\"status\": \"${SCENARIO_STATUS}\"}")
+
+              if [ "$HTTP_STATUS" = "200" ]; then
+                echo "    [OK]   ${JIRA_TEST_KEY} <- scenario \"${SCENARIO_NAME}\" -> ${SCENARIO_STATUS}"
+              else
+                echo "    [FAIL] ${JIRA_TEST_KEY} <- scenario \"${SCENARIO_NAME}\" -> HTTP ${HTTP_STATUS}"
+              fi
+            done
+          done
+        done
