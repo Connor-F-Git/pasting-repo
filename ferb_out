@@ -1,0 +1,13 @@
+==> Testing connectivity:
+* Uses proxy env variable no_proxy == REDACTED
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0   0     0   0     0     0     0  --:--:-- --:--:-- --:--:--     0* Host <insert accelq domain>:443 was resolved.
+* IPv6: (none)
+* IPv4: 100.80.242.152, 100.80.242.24
+*   Trying ipaddr:443...
+*   Trying ipaddr:443...
+  0     0   0     0   0     0     0     0  --:--:--  0:00:09 --:--:--     0* Connection timed out after 10002 milliseconds
+  0     0   0     0   0     0     0     0  --:--:--  0:00:10 --:--:--     0
+* closing connection #0
+curl: (28) Connection timed out after 10002 milliseconds
