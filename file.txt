@@ -51,21 +51,27 @@ $runsBody = @{
 
 $runsResponse = Invoke-RestMethod -Uri $ACCELQ_RUNS_LIST_URL -Method Post -Headers $accelqHeaders -Body $runsBody
 
+Write-Host "==> Raw response from AccelQ:"
+$runsResponse | ConvertTo-Json -Depth 10
+
 if (-not $runsResponse.data -or $runsResponse.data.Count -eq 0) {
     Write-Error "ERROR: No runs found for job ID $ACCELQ_JOB_ID."
     exit 1
 }
 
-$runPids = $runsResponse.data | Select-Object -ExpandProperty runPid
-Write-Host "    Found $($runPids.Count) run(s)."
+Write-Host "==> Properties on first data item:"
+$runsResponse.data[0] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
+
+$jobPids = $runsResponse.data | Select-Object -ExpandProperty jobPid
+Write-Host "    Found $($jobPids.Count) run(s)."
 
 # ── Step 2: For each run, loop over scenarios and update Xray ─────────────────
 
-foreach ($runPid in $runPids) {
+foreach ($jobPid in $jobPids) {
     Write-Host ""
-    Write-Host "==> Processing AccelQ run PID: $runPid"
+    Write-Host "==> Processing AccelQ job PID: $jobPid"
 
-    $runDetail = Invoke-RestMethod -Uri "$ACCELQ_RUN_STATUS_URL/$runPid" -Method Get -Headers $accelqHeaders
+    $runDetail = Invoke-RestMethod -Uri "$ACCELQ_RUN_STATUS_URL/$jobPid" -Method Get -Headers $accelqHeaders
 
     Write-Host "    Overall status: $($runDetail.summary.status)"
 
