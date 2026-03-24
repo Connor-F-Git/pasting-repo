@@ -38,7 +38,6 @@ $ACCELQ_DOMAIN = "accelq.example.pvt"
 $ACCELQ_API_KEY = "aaaaaaaaaaaaaa"
 $ACCELQ_PROJECT = "a_project"
 $ACCELQ_TENANT = "aaa"
-$ACCELQ_JIRA_INTEGRATION_PROJECT = "MYPROJ"
 
 # ── Auth headers ──────────────────────────────────────────────────────────────
 
@@ -54,6 +53,11 @@ $accelqHeaders = @{
     "Accept"       = "application/json"
     "Content-Type" = "application/json"
 }
+
+# ── Log file ──────────────────────────────────────────────────────────────────
+$LogFile = Join-Path $PSScriptRoot ("clone_log_" + (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + ".txt")
+Start-Transcript -Path $LogFile
+Write-Host "Logging to: $LogFile"
 
 # ── Step 1: Discover custom field IDs ────────────────────────────────────────
 
@@ -280,6 +284,7 @@ Write-Host "Original Manual tests are untouched."
 
 if ($keyMap.Count -eq 0) {
     Write-Host "`nNo successful clones - skipping AccelQ traceability update."
+    Stop-Transcript
     exit 0
 }
 
@@ -311,6 +316,19 @@ do {
 } while ($accelqScenarios.Count -lt $fetchResult.totalCount)
 
 Write-Host "Found $($accelqScenarios.Count) AccelQ scenario(s) to update."
+
+# Auto-discover the externalIntegrationProject value from existing traceability
+$integrationProject = $accelqScenarios `
+| ForEach-Object { $_.requirementTraceability } `
+| Where-Object { $_ -and $keyMap.ContainsKey($_.key) } `
+| Select-Object -ExpandProperty externalIntegrationProject -First 1
+
+if (-not $integrationProject) {
+    Write-Host "  [ERR] Could not auto-detect AccelQ integration project name from existing scenario traceability."
+    Write-Host "        Ensure AccelQ scenarios are already linked to the old Manual Jira keys."
+    exit 1
+}
+Write-Host "  Detected integration project: $integrationProject"
 
 $scenarioNewKeys = @{}
 
@@ -346,7 +364,7 @@ foreach ($keySetStr in $grouped.Keys) {
         requirementTraceability = @{
             requirementKeys            = @($keySetStr -split ",")
             updateType                 = "APPEND"
-            externalIntegrationProject = $ACCELQ_JIRA_INTEGRATION_PROJECT
+            externalIntegrationProject = $integrationProject
         }
     }
 }
@@ -373,271 +391,4 @@ catch {
 }
 
 Write-Host "`nAll done."
-
-
-# ── User-configurable variables ───────────────────────────────────────────────
-
-$JIRA_DOMAIN = "a.jira.org"        # Jira hostname only (no https://)
-$JIRA_PAT = "aaaaaaaaaaaaa"     # Jira Personal Access Token
-
-# JQL to find the Manual tests you want to clone. Examples:
-#   All manual tests in a project:
-#     'project = MYPROJ AND issuetype = Test AND "Test Type" = Manual'
-#   Specific tests:
-#     'issueKey in (MYPROJ-1, MYPROJ-2, MYPROJ-3)'
-$JQL = 'project = MYPROJ AND issuetype = Test AND "Test Type" = Manual'
-
-# Project key for the newly created Generic test issues (usually the same project)
-$TARGET_PROJECT = "MYPROJ"
-
-$ACCELQ_EMAIL = "a@a.com"              # Your AccelQ login email
-$ACCELQ_DOMAIN = "accelq.example.pvt"  # AccelQ hostname only (no https://)
-$ACCELQ_API_KEY = "aaaaaaaaaaaaaa"       # Found in AccelQ Auth Properties
-$ACCELQ_PROJECT = "a_project"            # Project Code from AccelQ Auth Properties
-$ACCELQ_TENANT = "aaa"                  # Tenant Code from AccelQ Auth Properties
-
-# The name of the Jira integration project as configured in AccelQ's
-# Requirements Traceability settings (shown when you add a Jira story link in AccelQ)
-$ACCELQ_JIRA_INTEGRATION_PROJECT = "MYPROJ"
-
-# ── Auth headers ──────────────────────────────────────────────────────────────
-
-$jiraHeaders = @{
-    "Authorization" = "Bearer $JIRA_PAT"
-    "Accept"        = "application/json"
-    "Content-Type"  = "application/json"
-}
-
-$accelqHeaders = @{
-    "user_id"      = $ACCELQ_EMAIL
-    "api_key"      = $ACCELQ_API_KEY
-    "Accept"       = "application/json"
-    "Content-Type" = "application/json"
-}
-
-# ── Step 1: Discover custom field IDs ────────────────────────────────────────
-
-Write-Host "Discovering Xray custom field IDs..."
-$allFields = Invoke-RestMethod -Uri "https://$JIRA_DOMAIN/rest/api/2/field" -Headers $jiraHeaders
-
-$testTypeField = $allFields | Where-Object { $_.name -eq "Test Type" } | Select-Object -First 1
-$runTypeField = $allFields | Where-Object { $_.name -eq "Run Type" } | Select-Object -First 1
-
-if (-not $testTypeField) { Write-Error "Cannot find 'Test Type' custom field."; exit 1 }
-if (-not $runTypeField) { Write-Error "Cannot find 'Run Type' custom field."; exit 1 }
-
-$testTypeFieldId = $testTypeField.id
-$runTypeFieldId = $runTypeField.id
-Write-Host "  Test Type : $testTypeFieldId"
-Write-Host "  Run Type  : $runTypeFieldId"
-
-# ── Step 2: Find the Test issue type ID for the target project ────────────────
-
-$projectMeta = Invoke-RestMethod -Uri "https://$JIRA_DOMAIN/rest/api/2/issue/createmeta?projectKeys=$TARGET_PROJECT&expand=projects.issuetypes" -Headers $jiraHeaders
-$testIssueType = $projectMeta.projects[0].issuetypes | Where-Object { $_.name -eq "Test" } | Select-Object -First 1
-
-if (-not $testIssueType) { Write-Error "Cannot find 'Test' issue type in project $TARGET_PROJECT."; exit 1 }
-Write-Host "  Test issue type ID: $($testIssueType.id)"
-
-# ── Step 3: Search for Manual tests to clone (paged) ─────────────────────────
-
-Write-Host "`nSearching for Manual tests: $JQL"
-
-$startAt = 0
-$pageSize = 50
-$allTests = @()
-
-do {
-    $searchBody = @{
-        jql        = $JQL
-        startAt    = $startAt
-        maxResults = $pageSize
-        fields     = @("summary", "description", "labels", "components", "issuelinks", $testTypeFieldId, $runTypeFieldId)
-    } | ConvertTo-Json
-
-    $page = Invoke-RestMethod -Uri "https://$JIRA_DOMAIN/rest/api/2/search" -Method Post -Headers $jiraHeaders -Body $searchBody
-    $allTests += $page.issues
-    $startAt += $pageSize
-} while ($allTests.Count -lt $page.total)
-
-Write-Host "Found $($allTests.Count) test(s) to clone."
-if ($allTests.Count -eq 0) { Write-Host "Nothing to do."; exit 0 }
-
-# ── Step 4: Clone each test as a new Generic/Automated issue ──────────────────
-
-$successCount = 0
-$failCount = 0
-$keyMap = @{}   # oldKey -> newKey, used by AccelQ update step below
-
-foreach ($test in $allTests) {
-    $oldKey = $test.key
-    $summary = $test.fields.summary
-
-    $newIssueBody = @{
-        fields = @{
-            project          = @{ key = $TARGET_PROJECT }
-            issuetype        = @{ id = $testIssueType.id }
-            summary          = $summary
-            $testTypeFieldId = @{ value = "Generic" }
-            $runTypeFieldId  = @{ value = "Automated" }
-        }
-    }
-
-    # Copy description if present
-    if ($test.fields.description) {
-        $newIssueBody.fields["description"] = $test.fields.description
-    }
-
-    # Copy labels if present
-    if ($test.fields.labels -and $test.fields.labels.Count -gt 0) {
-        $newIssueBody.fields["labels"] = $test.fields.labels
-    }
-
-    try {
-        $created = Invoke-RestMethod `
-            -Uri    "https://$JIRA_DOMAIN/rest/api/2/issue" `
-            -Method Post `
-            -Headers $jiraHeaders `
-            -Body   ($newIssueBody | ConvertTo-Json -Depth 10)
-
-        $newKey = $created.key
-        $keyMap[$oldKey] = $newKey
-        Write-Host "  [OK]  $oldKey -> $newKey  ($summary)"
-
-        # Copy "Tests" requirement links (outward "tests" link type in Xray)
-        $reqLinks = $test.fields.issuelinks | Where-Object {
-            $_.type.name -eq "Tests" -and $_.outwardIssue
-        }
-        foreach ($link in $reqLinks) {
-            $reqKey = $link.outwardIssue.key
-            $linkBody = @{
-                type         = @{ name = "Tests" }
-                outwardIssue = @{ key = $reqKey }
-                inwardIssue  = @{ key = $newKey }
-            } | ConvertTo-Json
-            try {
-                Invoke-RestMethod -Uri "https://$JIRA_DOMAIN/rest/api/2/issueLink" -Method Post -Headers $jiraHeaders -Body $linkBody | Out-Null
-                Write-Host "         Linked to requirement: $reqKey"
-            }
-            catch {
-                Write-Host "         [WARN] Could not link to $reqKey : $($_.Exception.Message)"
-            }
-        }
-
-        $successCount++
-    }
-    catch {
-        $status = $_.Exception.Response.StatusCode.value__
-        Write-Host "  [ERR] $oldKey ($summary) -> $status : $($_.Exception.Message)"
-        $failCount++
-    }
-}
-
-Write-Host "`nDone. $successCount cloned, $failCount failed."
-Write-Host "Original Manual tests are untouched."
-
-if ($keyMap.Count -eq 0) {
-    Write-Host "`nNo successful clones — skipping AccelQ traceability update."
-    exit 0
-}
-
-# ── Step 5: Update AccelQ scenario traceability ───────────────────────────────
-# For each old->new key pair, find AccelQ scenarios linked to the old key,
-# then APPEND the new Generic key to their requirement traceability.
-
-Write-Host "`n── Updating AccelQ requirement traceability ──────────────────────────────"
-
-$ACCELQ_SCN_BASE = "https://$ACCELQ_DOMAIN/awb/api/2.0/$ACCELQ_TENANT/$ACCELQ_PROJECT/scn/scenarios/auto"
-
-$oldKeys = $keyMap.Keys | ForEach-Object { $_ }
-
-# Fetch all AccelQ scenarios that reference any of the old Manual keys (paged)
-$accelqScenarios = @()
-$pageNum = 1
-$pageSize = 25
-
-do {
-    $fetchBody = @{
-        filter       = @{ requirementKeys = $oldKeys }
-        fetchDetails = @{ requirementTraceability = $true }
-    } | ConvertTo-Json -Depth 5
-
-    $fetchResult = Invoke-RestMethod `
-        -Uri     "$ACCELQ_SCN_BASE/fetch-details?pageNumber=$pageNum&pageSize=$pageSize" `
-        -Method  Post `
-        -Headers $accelqHeaders `
-        -Body    $fetchBody
-
-    $accelqScenarios += $fetchResult.results
-    $pageNum++
-} while ($accelqScenarios.Count -lt $fetchResult.totalCount)
-
-Write-Host "Found $($accelqScenarios.Count) AccelQ scenario(s) to update."
-
-# Build bulk-update payload: group scenarios by which new key they need appended.
-# A scenario may link to multiple old keys so we collect all its new keys at once.
-$scenarioNewKeys = @{}   # scenarioId -> [newKey, ...]
-
-foreach ($scn in $accelqScenarios) {
-    $scnId = $scn.id
-    if (-not $scenarioNewKeys.ContainsKey($scnId)) {
-        $scenarioNewKeys[$scnId] = [System.Collections.Generic.List[string]]::new()
-    }
-
-    # Find which old keys this scenario is linked to and map them to new keys
-    $linkedOldKeys = $scn.requirementTraceability `
-    | Where-Object { $keyMap.ContainsKey($_.key) } `
-    | Select-Object -ExpandProperty key
-
-    foreach ($oldKey in $linkedOldKeys) {
-        $newKey = $keyMap[$oldKey]
-        if (-not $scenarioNewKeys[$scnId].Contains($newKey)) {
-            $scenarioNewKeys[$scnId].Add($newKey)
-        }
-    }
-}
-
-# Group by the set of new keys to minimise API calls
-$grouped = @{}   # "KEY1,KEY2" -> [scenarioId, ...]
-foreach ($scnId in $scenarioNewKeys.Keys) {
-    $keySetStr = ($scenarioNewKeys[$scnId] | Sort-Object) -join ","
-    if (-not $grouped.ContainsKey($keySetStr)) {
-        $grouped[$keySetStr] = [System.Collections.Generic.List[int]]::new()
-    }
-    $grouped[$keySetStr].Add($scnId)
-}
-
-$bulkPayload = @()
-foreach ($keySetStr in $grouped.Keys) {
-    $bulkPayload += @{
-        scenarioIds             = @($grouped[$keySetStr])
-        requirementTraceability = @{
-            requirementKeys            = @($keySetStr -split ",")
-            updateType                 = "APPEND"
-            externalIntegrationProject = $ACCELQ_JIRA_INTEGRATION_PROJECT
-        }
-    }
-}
-
-try {
-    $bulkResult = Invoke-RestMethod `
-        -Uri     "$ACCELQ_SCN_BASE/bulk-update" `
-        -Method  Patch `
-        -Headers $accelqHeaders `
-        -Body    ($bulkPayload | ConvertTo-Json -Depth 10)
-
-    Write-Host "  Updated scenario IDs  : $($bulkResult.updatedEntities -join ', ')"
-    if ($bulkResult.notUpdatedOthersCheckedOutEntities.Count -gt 0) {
-        Write-Host "  [WARN] Checked-out (not updated): $($bulkResult.notUpdatedOthersCheckedOutEntities -join ', ')"
-        Write-Host "         These scenarios are checked out by another user in AccelQ. Update them manually."
-    }
-    if ($bulkResult.notFoundEntities.Count -gt 0) {
-        Write-Host "  [WARN] Not found: $($bulkResult.notFoundEntities -join ', ')"
-    }
-}
-catch {
-    $status = $_.Exception.Response.StatusCode.value__
-    Write-Host "  [ERR] AccelQ bulk-update failed ($status): $($_.Exception.Message)"
-}
-
-Write-Host "`nAll done."
+Stop-Transcript
