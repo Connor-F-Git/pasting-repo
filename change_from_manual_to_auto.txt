@@ -1,0 +1,171 @@
+# =============================================================================
+# just_changes_to_automated.ps1
+#
+# Walks the Xray Test Repository folder (SOURCE_FOLDER_NAME) and sets the
+# "Run Type" field to "Automated" on every test found.
+#
+# - Test Type is never touched (changing it would delete manual test steps)
+# - No new issues are created
+# - No AccelQ changes
+# - All output is written to a timestamped log file in the same directory
+#
+# Fill in the variables below before running.
+# =============================================================================
+
+# ── User-configurable variables ───────────────────────────────────────────────
+
+$JIRA_DOMAIN = "a.jira.org"    # Jira hostname only (no https://)
+$JIRA_PAT = "aaaaaaaaaaaaa" # Jira Personal Access Token
+$TARGET_PROJECT = "SRCWEBRED"   # Jira project key
+
+# Folder name exactly as it appears in the Xray Test Repository UI
+$SOURCE_FOLDER_NAME = "CBC"
+
+# Subfolders to skip (at any depth). Use just a name to skip all folders with
+# that name anywhere in the tree, or a path like "Parent/Child" to target only
+# that specific location. Children of skipped folders are also skipped.
+$IGNORE_FOLDERS = @(
+    "Index Page",
+    "Lengthy Tags",
+    "Supports Date Filtering on CBC Release",
+    "Table Design for CBC",
+    "Lengthy Tags/Articles List Page"
+)
+
+# ── Auth headers ──────────────────────────────────────────────────────────────
+
+$jiraHeaders = @{
+    "Authorization" = "Bearer $JIRA_PAT"
+    "Accept"        = "application/json"
+    "Content-Type"  = "application/json"
+}
+
+# ── Log file ──────────────────────────────────────────────────────────────────
+
+$LogFile = Join-Path $PSScriptRoot ("set_automated_log_" + (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + ".txt")
+Start-Transcript -Path $LogFile
+Write-Host "Logging to: $LogFile"
+
+# ── Step 1: Discover Run Type field ID ───────────────────────────────────────
+
+Write-Host "`nDiscovering Xray custom field IDs..."
+$allFields = Invoke-RestMethod -Uri "https://$JIRA_DOMAIN/rest/api/2/field" -Headers $jiraHeaders
+$runTypeField = $allFields | Where-Object { $_.name -eq "Run Type" } | Select-Object -First 1
+
+if (-not $runTypeField) {
+    Write-Error "Cannot find 'Run Type' custom field. Check your Jira domain and PAT."
+    Stop-Transcript
+    exit 1
+}
+$runTypeFieldId = $runTypeField.id
+Write-Host "  Run Type field ID: $runTypeFieldId"
+
+# ── Helper: get all tests in a folder (paged) ─────────────────────────────────
+
+function Get-FolderTests {
+    param([string]$folderId)
+    $allTests = @()
+    $page = 1
+    $batchSize = 50
+    do {
+        $result = Invoke-RestMethod `
+            -Uri     "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrepository/$TARGET_PROJECT/folders/$folderId/tests?page=$page&limit=$batchSize" `
+            -Headers $jiraHeaders
+        if ($result.tests) { $allTests += $result.tests }
+        $page++
+    } while ($allTests.Count -lt $result.total)
+    return $allTests
+}
+
+# ── Helper: find a folder by name and return it with its parent's ID ──────────
+
+function Find-FolderAndParent {
+    param($treeNode, [string]$targetName)
+    foreach ($child in $treeNode.folders) {
+        if ($child.name -eq $targetName) {
+            return @{ folder = $child; parentId = $treeNode.id }
+        }
+        if ($child.folders -and $child.folders.Count -gt 0) {
+            $result = Find-FolderAndParent -treeNode $child -targetName $targetName
+            if ($result) { return $result }
+        }
+    }
+    return $null
+}
+
+# ── Helper: update Run Type on every test in a folder, then recurse ───────────
+
+function Update-FolderContents {
+    param($srcFolder, [string]$indent = "  ", [string]$currentPath = "")
+
+    $folderTests = Get-FolderTests -folderId ([string]$srcFolder.id)
+
+    foreach ($test in $folderTests) {
+        $key = $test.key
+        $updateBody = @{
+            fields = @{
+                $script:runTypeFieldId = @{ value = "Automated" }
+            }
+        } | ConvertTo-Json -Depth 5
+
+        try {
+            Invoke-RestMethod `
+                -Uri     "https://$JIRA_DOMAIN/rest/api/2/issue/$key" `
+                -Method  Put `
+                -Headers $jiraHeaders `
+                -Body    $updateBody | Out-Null
+            Write-Host "${indent}[OK]  $key"
+            $script:successCount++
+        }
+        catch {
+            $status = $_.Exception.Response.StatusCode.value__
+            Write-Host "${indent}[ERR] $key -> $status : $($_.Exception.Message)"
+            $script:failCount++
+        }
+    }
+
+    # Recurse into subfolders
+    if ($srcFolder.folders -and $srcFolder.folders.Count -gt 0) {
+        foreach ($child in $srcFolder.folders) {
+            $childPath = if ($currentPath) { "$currentPath/$($child.name)" } else { $child.name }
+            $shouldSkip = $script:IGNORE_FOLDERS | Where-Object {
+                $childPath -eq $_ -or $childPath -like "*/$_"
+            }
+            if ($shouldSkip) {
+                Write-Host "${indent}[SKIP] $childPath"
+                continue
+            }
+            Write-Host "${indent}Folder: $($child.name)"
+            Update-FolderContents -srcFolder $child -indent ("  " + $indent) -currentPath $childPath
+        }
+    }
+}
+
+# ── Step 2: Fetch folder hierarchy and locate source folder ───────────────────
+
+Write-Host "`nFetching Test Repository folder hierarchy..."
+$hierarchy = Invoke-RestMethod `
+    -Uri     "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrepository/$TARGET_PROJECT/folders" `
+    -Headers $jiraHeaders
+
+$found = Find-FolderAndParent -treeNode $hierarchy -targetName $SOURCE_FOLDER_NAME
+if (-not $found) {
+    Write-Error "Cannot find folder '$SOURCE_FOLDER_NAME' in the Test Repository for project $TARGET_PROJECT."
+    Stop-Transcript
+    exit 1
+}
+$srcFolder = $found.folder
+Write-Host "  Found '$SOURCE_FOLDER_NAME' (id: $($srcFolder.id))"
+
+# ── Step 3: Walk folder and set Run Type = Automated ─────────────────────────
+
+Write-Host "`n── Setting Run Type = Automated in '$SOURCE_FOLDER_NAME' ────────────────"
+$successCount = 0
+$failCount = 0
+
+Update-FolderContents -srcFolder $srcFolder
+
+Write-Host "`nDone. $successCount updated, $failCount failed."
+Write-Host "Test Type and test steps were not touched."
+
+Stop-Transcript
