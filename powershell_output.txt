@@ -1,0 +1,331 @@
+==> Fetching AccelQ runs for job ID 101919...
+    Targeting Jira Test Execution: SRCWEBRED-567
+==> Raw response from AccelQ:
+{
+    "pageNum":  1,
+    "pageSize":  100,
+    "filter":  {
+                   "name":  null,
+                   "from":  null,
+                   "to":  null,
+                   "statusList":  [
+                                      3,
+                                      4
+                                  ],
+                   "tagList":  null,
+                   "testTypePid":  null,
+                   "jobPidList":  [
+                                      101919
+                                  ],
+                   "userPidList":  null,
+                   "datasetPidList":  null,
+                   "debug":  null,
+                   "bugs":  null,
+                   "executionParamsFilter":  null,
+                   "scenarioJob":  null,
+                   "sortItemList":  null
+               },
+    "data":  [
+                 {
+                     "jobPid":  101919,
+                     "status":  "completed",
+                     "tagList":  [
+
+                                 ],
+                     "subStatus":  "In progress",
+                     "reasons":  [
+
+                                 ],
+                     "errors":  [
+
+                                ],
+                     "pass":  1,
+                     "fail":  1,
+                     "notRun":  0,
+                     "testcaseCount":  2,
+                     "completedTimestamp":  1773942574379,
+                     "lastUpdatedTimestamp":  0,
+                     "testCaseSummaryList":  [
+                                                 {
+                                                     "reportVersion":  "3.3",
+                                                     "id":  0,
+                                                     "dbPid":  129757,
+                                                     "scnPid":  58689,
+                                                     "name":  "CBC 404 Page",
+                                                     "status":  "pass",
+                                                     "lastStatusUpdatedUserName":  "",
+                                                     "lastErrorStmtMsg":  "",
+                                                     "startDate":  1773942318717,
+                                                     "endDate":  1773942440882,
+                                                     "jobPid":  101919,
+                                                     "extResultLink":  "https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\u0026jobPid=101919\u0026testTypePid=0\u0026scnPid=58689\u0026testCasePid=129757\u0026isAccessAllTC=true",
+                                                     "selfHealingCount":  null,
+                                                     "hostTimezone":  "GMT-05:00",
+                                                     "metadata":  {
+                                                                      "tags":  [
+
+                                                                               ]
+                                                                  }
+                                                 },
+                                                 {
+                                                     "reportVersion":  "3.3",
+                                                     "id":  0,
+                                                     "dbPid":  139539,
+                                                     "scnPid":  63570,
+                                                     "name":  "CCO 404 Page",
+                                                     "status":  "fail",
+                                                     "lastStatusUpdatedUserName":  "",
+                                                     "lastErrorStmtMsg":  "[CCO Verify Top Nav] CCO 404 Page is not displayed. Test execution aborted. [Verified on Page property, \"title_contains = 404\"]",
+                                                     "startDate":  1773942441294,
+                                                     "endDate":  1773942573125,
+                                                     "jobPid":  101919,
+                                                     "extResultLink":  "https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\u0026jobPid=101919\u0026testTypePid=0\u0026scnPid=63570\u0026testCasePid=139539\u0026isAccessAllTC=true",
+                                                     "selfHealingCount":  null,
+                                                     "hostTimezone":  "GMT-05:00",
+                                                     "metadata":  {
+                                                                      "tags":  [
+
+                                                                               ]
+                                                                  }
+                                                 }
+                                             ],
+                     "reportVersion":  "3.3",
+                     "purpose":  "Test Suite - API Test",
+                     "testTypePid":  0,
+                     "createdBy":  "Connor Fedalen",
+                     "startTimestamp":  1773942318339,
+                     "tenantCode":  "frb",
+                     "projectCode":  "PHL_SQA_3SRC_Websites_Redesign",
+                     "datasetName":  "Test",
+                     "scnCount":  2,
+                     "testSuiteName":  "API Test",
+                     "testSuitePid":  2464,
+                     "scnName":  "",
+                     "hostConfig":  {
+                                        "webProviderType":  "Local Agent",
+                                        "mobileProviderType":  "Local Agent",
+                                        "webConnectionParams":  {
+
+                                                                },
+                                        "mobileConnectionParams":  {
+
+                                                                   },
+                                        "agentName":  "ConnorAccelQLocalAgent",
+                                        "agentNamePattern":  null,
+                                        "dynamicAgent":  true,
+                                        "parallelExecution":  false,
+                                        "numOfParallelRuns":  1,
+                                        "webAdditionalCapabilities":  "{\n\"binary\":\"C:\\\\Temp\\\\AccelQChrome\\\\chrome-win64\\\\chrome.exe\",\n\"headless\": \"false\"\n}",
+                                        "mobileAdditionalCapabilities":  "",
+                                        "webDriverConfigName":  "ConnorHeadlessFalse",
+                                        "mobileDriverConfigName":  "",
+                                        "browserKeepAlive":  true,
+                                        "mobileKeepAlive":  true,
+                                        "skipReinstall":  false,
+                                        "webPlatformDetails":  {
+                                                                   "os":  "Any",
+                                                                   "osVersion":  "",
+                                                                   "browser":  "Chrome",
+                                                                   "browserVersion":  "",
+                                                                   "isRealDevice":  true,
+                                                                   "deviceStatus":  3,
+                                                                   "customDriverUrl":  "http://127.0.0.1:4723/wd/hub",
+                                                                   "appiumDriverUrl":  "http://127.0.0.1:4723/wd/hub"
+                                                               },
+                                        "mobilePlatformDetails":  null,
+                                        "mobilePlatformDetailsList":  null,
+                                        "emulatedDeviceDetails":  {
+                                                                      "deviceName":  "Google Pixel 7 Pro",
+                                                                      "deviceType":  "PHONE",
+                                                                      "width":  412,
+                                                                      "height":  892,
+                                                                      "devicePixelRatio":  3.5,
+                                                                      "userAgentString":  "Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+                                                                  },
+                                        "tcStmtLineMaxCount":  100000,
+                                        "autoStartBsLocal":  true,
+                                        "webOs":  "Any",
+                                        "webOsVersion":  "",
+                                        "webBrowser":  "Chrome",
+                                        "webBrowserVersion":  ""
+                                    },
+                     "notifyOnStart":  true,
+                     "emailNotificationMode":  0,
+                     "notificationEmailIds":  "",
+                     "debug":  false,
+                     "enableIframeFreeFormSearch":  false,
+                     "settings":  {
+                                      "captureScreenshot":  "1",
+                                      "enableSelfHealing":  "true",
+                                      "pageLoadWaitTime":  "60",
+                                      "elementWaitTime":  "30",
+                                      "loggerLevel":  "INFO",
+                                      "verbose":  "false",
+                                      "enableWebAccessibilityTesting":  "false",
+                                      "enableWebPerformanceTesting":  "false",
+                                      "slaThreshold":  "0",
+                                      "apiTimeout":  "60"
+                                  },
+                     "scenarioMetadataDef":  {
+
+                                             },
+                     "testCaseMetadataDef":  {
+
+                                             },
+                     "runConfig":  {
+
+                                   },
+                     "executionParametersJson":  "{}",
+                     "bugsCount":  0,
+                     "bugList":  [
+
+                                 ],
+                     "scenarioList":  [
+                                          {
+                                              "name":  "CBC 404 Page",
+                                              "description":  "",
+                                              "dbPid":  58689,
+                                              "dataDriven":  true,
+                                              "metadata":  {
+
+                                                           },
+                                              "testCases":  [
+
+                                                            ],
+                                              "testCasesList":  [
+                                                                    {
+                                                                        "pid":  129757,
+                                                                        "name":  "CBC 404 Page"
+                                                                    }
+                                                                ],
+                                              "jiraStoryList":  [
+                                                                    {
+                                                                        "pid":  912.0,
+                                                                        "key":  "SRCWEBRED-534",
+                                                                        "title":  "CBC: 404 Page Not Found",
+                                                                        "type":  "Test",
+                                                                        "status":  "Backlog",
+                                                                        "link":  "https://enterprisejira.frb.org/browse/SRCWEBRED-534",
+                                                                        "lastUpdatedDate":  "2026-01-28T15:10:40.000-0500",
+                                                                        "lastRefreshTimestamp":  1772649225867,
+                                                                        "active":  true,
+                                                                        "project":  "T-SRC Outreach Websites Redesign"
+                                                                    }
+                                                                ]
+                                          },
+                                          {
+                                              "name":  "CCO 404 Page",
+                                              "description":  "",
+                                              "dbPid":  63570,
+                                              "dataDriven":  true,
+                                              "metadata":  {
+
+                                                           },
+                                              "testCases":  [
+
+                                                            ],
+                                              "testCasesList":  [
+                                                                    {
+                                                                        "pid":  139539,
+                                                                        "name":  "CCO 404 Page"
+                                                                    }
+                                                                ],
+                                              "jiraStoryList":  [
+                                                                    {
+                                                                        "pid":  1009.0,
+                                                                        "key":  "SRCWEBRED-533",
+                                                                        "title":  "CCO: 404 Page Not Found",
+                                                                        "type":  "Test",
+                                                                        "status":  "Backlog",
+                                                                        "link":  "https://enterprisejira.frb.org/browse/SRCWEBRED-533",
+                                                                        "lastUpdatedDate":  "2025-09-05T12:39:51.000-0400",
+                                                                        "lastRefreshTimestamp":  1772650386528,
+                                                                        "active":  true,
+                                                                        "project":  "T-SRC Outreach Websites Redesign"
+                                                                    }
+                                                                ]
+                                          }
+                                      ],
+                     "autoReRun":  false,
+                     "extResultUrl":  "https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\u0026jobPid=101919\u0026testTypePid=0"
+                 }
+             ],
+    "totalCount":  0,
+    "filteredCount":  1,
+    "liveCount":  null,
+    "sysCount":  null,
+    "xpCount":  null,
+    "currentProjectCount":  null,
+    "alertsCount":  0,
+    "filteredPidNameList":  null,
+    "dataExists":  true,
+    "additionalInfo":  null
+}
+==> Properties on first data item:
+autoReRun
+bugList
+bugsCount
+completedTimestamp
+createdBy
+datasetName
+debug
+emailNotificationMode
+enableIframeFreeFormSearch
+errors
+executionParametersJson
+extResultUrl
+fail
+hostConfig
+jobPid
+lastUpdatedTimestamp
+notificationEmailIds
+notifyOnStart
+notRun
+pass
+projectCode
+purpose
+reasons
+reportVersion
+runConfig
+scenarioList
+scenarioMetadataDef
+scnCount
+scnName
+settings
+startTimestamp
+status
+subStatus
+tagList
+tenantCode
+testcaseCount
+testCaseMetadataDef
+testCaseSummaryList
+testSuiteName
+testSuitePid
+testTypePid
+    Found 1 run(s).
+
+==> Processing AccelQ job PID: 101919
+    Overall status: completed
+Invoke-RestMethod : The remote name could not be resolved: 'phl_sqa_3src_websites_redesign'
+At C:\Users\C1CXF05\Documents\ACCELQ_to_Xray_Integration\test_execution_pipeline.ps1:99 char:32
++             $testRunResponse = Invoke-RestMethod `
++                                ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+
+WARNING:     [WARN] No test run found for @{pid=912.0; key=SRCWEBRED-534; title=CBC: 404 Page Not Found; type=Test; status=Backlog;
+link=https://enterprisejira.frb.org/browse/SRCWEBRED-534; lastUpdatedDate=2026-01-28T15:10:40.000-0500; lastRefreshTimestamp=1772649225867; active=True; project=T-SRC Outreach 
+ Websites Redesign} in SRCWEBRED-567 (scenario: "CBC 404 Page")
+Invoke-RestMethod : The remote name could not be resolved: 'phl_sqa_3src_websites_redesign'
+At C:\Users\C1CXF05\Documents\ACCELQ_to_Xray_Integration\test_execution_pipeline.ps1:99 char:32
++             $testRunResponse = Invoke-RestMethod `
++                                ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+
+WARNING:     [WARN] No test run found for @{pid=1009.0; key=SRCWEBRED-533; title=CCO: 404 Page Not Found; type=Test; status=Backlog;
+link=https://enterprisejira.frb.org/browse/SRCWEBRED-533; lastUpdatedDate=2025-09-05T12:39:51.000-0400; lastRefreshTimestamp=1772650386528; active=True; project=T-SRC Outreach 
+ Websites Redesign} in SRCWEBRED-567 (scenario: "CCO 404 Page")
+
+==> Done.
