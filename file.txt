@@ -103,7 +103,7 @@ foreach ($jobPid in $jobPids) {
                     -Headers $jiraHeaders
             }
             catch {
-                Write-Warning "    [WARN] $jiraTestKey is not in Test Execution $TEST_EXECUTION_KEY — skipping. ($($_.Exception.Message))"
+                Write-Warning "    [WARN] $jiraTestKey is not in Test Execution $TEST_EXECUTION_KEY - skipping. ($($_.Exception.Message))"
                 continue
             }
 
@@ -125,6 +125,24 @@ foreach ($jobPid in $jobPids) {
             }
             catch {
                 Write-Host "    [FAIL] $jiraTestKey <- scenario `"$scenarioName`" -> $($_.Exception.Response.StatusCode.value__): $($_.Exception.Message)"
+            }
+
+            # Attach AccelQ result link as a comment on the test run
+            if ($tc.extResultLink) {
+                $comment = "AccelQ Result: $($tc.extResultLink)"
+                $commentBody = @{ comment = $comment } | ConvertTo-Json -Compress
+                try {
+                    Invoke-RestMethod `
+                        -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/comment" `
+                        -Method Put `
+                        -Headers $jiraHeaders `
+                        -Body $commentBody | Out-Null
+
+                    Write-Host "    [OK]   $jiraTestKey <- AccelQ result link attached as comment"
+                }
+                catch {
+                    Write-Host "    [FAIL] $jiraTestKey <- comment update -> $($_.Exception.Response.StatusCode.value__): $($_.Exception.Message)"
+                }
             }
         }
     }
