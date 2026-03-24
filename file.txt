@@ -129,8 +129,11 @@ foreach ($jobPid in $jobPids) {
 
             # Attach AccelQ result link as a comment on the test run
             if ($tc.extResultLink) {
-                $commentText = "AccelQ Result for '$scenarioName': $([string]$tc.extResultLink)"
-                $commentBody = $commentText | ConvertTo-Json
+                $url = [string]$tc.extResultLink
+                $commentText = "AccelQ Result for '$scenarioName': $url"
+                # Build JSON manually so & is NOT encoded as \u0026 (ConvertTo-Json would break the URL)
+                $escaped = $commentText -replace '\\', '\\' -replace '"', '\"'
+                $commentBody = "`"$escaped`""
                 try {
                     Invoke-RestMethod `
                         -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/comment" `
