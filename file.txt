@@ -129,16 +129,8 @@ foreach ($jobPid in $jobPids) {
 
             # Attach AccelQ result link as a comment on the test run
             if ($tc.extResultLink) {
-                # First GET the current comment to see the exact schema Xray expects
-                $currentComment = Invoke-RestMethod `
-                    -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/comment" `
-                    -Method Get `
-                    -Headers $jiraHeaders
-                Write-Host "    [DEBUG] Current comment schema: $($currentComment | ConvertTo-Json -Depth 5)"
-
                 $commentText = "AccelQ Result for '$scenarioName': $([string]$tc.extResultLink)"
-                $commentBody = '{"comment":' + ($commentText | ConvertTo-Json) + '}'
-                Write-Host "    [DEBUG] Sending comment body: $commentBody"
+                $commentBody = $commentText | ConvertTo-Json
                 try {
                     Invoke-RestMethod `
                         -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/comment" `
