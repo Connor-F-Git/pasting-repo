@@ -1,3 +1,25 @@
+# =============================================================================
+# sync_accelq_to_xray.ps1
+#
+# Fetches AccelQ scenario results for a given Job ID, then updates the
+# corresponding Jira Xray test run statuses via the Xray REST API.
+#
+# Fill in the variables below before running.
+# =============================================================================
+
+# ── User-configurable variables ───────────────────────────────────────────────
+
+$ACCELQ_EMAIL = "a@a.com"           # Your AccelQ login email
+$ACCELQ_DOMAIN = "accelq.example.pvt" # Hostname only (no https://)
+$ACCELQ_API_KEY = "aaaaaaaaaaaaaa"    # Found in AccelQ Auth Properties
+$ACCELQ_PROJECT = "a_project"         # Project Code from AccelQ Auth Properties
+$ACCELQ_TENANT = "aaa"               # Tenant Code from AccelQ Auth Properties
+$ACCELQ_JOB_ID = 101010              # AccelQ Job ID whose results should be synced
+
+$JIRA_DOMAIN = "a.jira.org"        # Jira hostname only (no https://)
+$JIRA_PAT = "aaaaaaaaaaaaa"     # Jira Personal Access Token
+$TEST_EXECUTION_KEY = "ABC-123"         # Jira Test Execution issue key (e.g. PROJ-123)
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 $ACCELQ_RUNS_LIST_URL = "https://$ACCELQ_DOMAIN/awb/api/$ACCELQ_TENANT/$ACCELQ_PROJECT/v1/ext-access/runs"
