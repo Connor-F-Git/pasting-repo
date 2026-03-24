@@ -127,10 +127,10 @@ foreach ($jobPid in $jobPids) {
                 Write-Host "    [FAIL] $jiraTestKey <- scenario `"$scenarioName`" -> $($_.Exception.Response.StatusCode.value__): $($_.Exception.Message)"
             }
 
-            # Attach AccelQ result link as a comment on the test run
+            # Attach AccelQ result link as a comment on the test run (Jira wiki markup hyperlink)
             if ($tc.extResultLink) {
-                $comment = "AccelQ Result: $($tc.extResultLink)"
-                $commentBody = @{ comment = $comment } | ConvertTo-Json -Compress
+                $wikiLink = "[AccelQ Result: $scenarioName|$([string]$tc.extResultLink)]"
+                $commentBody = "{`"comment`": `"$($wikiLink -replace '\\', '\\\\' -replace '"', '\"')`"}"
                 try {
                     Invoke-RestMethod `
                         -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/comment" `
