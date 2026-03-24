@@ -1,42 +1,10 @@
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100    67    0     0  100    67      0   3455 --:--:-- --:--:-- --:--:--  3722
-
-
-
-
-==> Fetching AccelQ runs for job ID 101919...
-Note: Unnecessary use of -X or --request, POST is already inferred.
-* Uses proxy env variable no_proxy == '.us-gov-west-1.amazonaws.com,.us-gov-east-1.amazonaws.com,.frb.org,.frb.pvt,.local,.localhost,localhost,127.0.0.1,169.254.169.254'
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0   0     0   0     0     0     0  --:--:-- --:--:-- --:--:--     0* Host accelq.prod.plz-testing.awscfs.frb.pvt:443 was resolved.
-* IPv6: (none)
-* IPv4: 100.80.242.152, 100.80.242.24
-*   Trying 100.80.242.152:443...
-*   Trying 100.80.242.24:443...
-  0     0   0     0   0     0     0     0  --:--:-- --:--:-- --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:00 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:03 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:09 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:12 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:16 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:22 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:25 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:28 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:35 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:38 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:44 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:47 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:50 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:53 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:56 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:01:59 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:02:02 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:02:06 --:--:--     0
-  0     0   0     0   0     0     0     0  --:--:--  0:02:08 --:--:--     0* connect to 100.80.242.152 port 443 from 100.115.209.54 port 33194 failed: Connection timed out
-  0     0   0     0   0     0     0     0  --:--:--  0:02:14 --:--:--     0* connect to 100.80.242.24 port 443 from 100.115.209.54 port 33862 failed: Connection timed out
-* Failed to connect to accelq.prod.plz-testing.awscfs.frb.pvt port 443 after 134350 ms: Could not connect to server
-  0     0   0     0   0     0     0     0  --:--:--  0:02:14 --:--:--     0
-* closing connection #0
-curl: (28) Failed to connect to accelq.prod.plz-testing.awscfs.frb.pvt port 443 after 134350 ms: Could not connect to server
+==> Processing AccelQ job PID: 101919
+    Overall status: completed
+    [FAIL] SRCWEBRED-534 <- scenario "CBC 404 Page" -> 500: The remote server returned an error: (500) Internal Server Error.
+Invoke-RestMethod : Test Run not found for Test Execution with key SRCWEBRED-567 and Test issue with key SRCWEBRED-533.
+At C:\Users\C1CXF05\Documents\ACCELQ_to_Xray_Integration\test_execution_pipeline.ps1:99 char:32
++             $testRunResponse = Invoke-RestMethod `
++                                ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+    [FAIL] SRCWEBRED-533 <- scenario "CCO 404 Page" -> 500: The remote server returned an error: (500) Internal Server Error.
