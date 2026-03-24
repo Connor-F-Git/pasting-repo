@@ -1,25 +1,3 @@
-# =============================================================================
-# sync_accelq_to_xray.ps1
-#
-# Fetches AccelQ scenario results for a given Job ID, then updates the
-# corresponding Jira Xray test run statuses via the Xray REST API.
-#
-# Fill in the variables below before running.
-# =============================================================================
-
-# ── User-configurable variables ───────────────────────────────────────────────
-
-$ACCELQ_EMAIL = "a@a.com"           # Your AccelQ login email
-$ACCELQ_DOMAIN = "accelq.example.pvt" # Hostname only (no https://)
-$ACCELQ_API_KEY = "aaaaaaaaaaaaaa"    # Found in AccelQ Auth Properties
-$ACCELQ_PROJECT = "a_project"         # Project Code from AccelQ Auth Properties
-$ACCELQ_TENANT = "aaa"               # Tenant Code from AccelQ Auth Properties
-$ACCELQ_JOB_ID = 101010              # AccelQ Job ID whose results should be synced
-
-$JIRA_DOMAIN = "a.jira.org"        # Jira hostname only (no https://)
-$JIRA_PAT = "aaaaaaaaaaaaa"     # Jira Personal Access Token
-$TEST_EXECUTION_KEY = "ABC-123"         # Jira Test Execution issue key (e.g. PROJ-123)
-
 # ─────────────────────────────────────────────────────────────────────────────
 
 $ACCELQ_RUNS_LIST_URL = "https://$ACCELQ_DOMAIN/awb/api/$ACCELQ_TENANT/$ACCELQ_PROJECT/v1/ext-access/runs"
@@ -87,7 +65,7 @@ foreach ($jobPid in $jobPids) {
 
         # Cross-reference scnPid -> scenarioList[].dbPid to get jiraStoryList
         $matchedScenario = $scenarioList | Where-Object { $_.dbPid -eq $tc.scnPid }
-        $jiraTestKeys = $matchedScenario.jiraStoryList
+        $jiraTestKeys = $matchedScenario.jiraStoryList | Select-Object -ExpandProperty key
 
         if (-not $jiraTestKeys -or $jiraTestKeys.Count -eq 0) {
             Write-Host "    [SKIP] No linked Jira test cases for scenario: `"$scenarioName`""
@@ -96,10 +74,16 @@ foreach ($jobPid in $jobPids) {
 
         foreach ($jiraTestKey in $jiraTestKeys) {
             # Look up the Xray test run ID within the target Test Execution
-            $testRunResponse = Invoke-RestMethod `
-                -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun?testExecIssueKey=$TEST_EXECUTION_KEY&testIssueKey=$jiraTestKey" `
-                -Method Get `
-                -Headers $jiraHeaders
+            try {
+                $testRunResponse = Invoke-RestMethod `
+                    -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun?testExecIssueKey=$TEST_EXECUTION_KEY&testIssueKey=$jiraTestKey" `
+                    -Method Get `
+                    -Headers $jiraHeaders
+            }
+            catch {
+                Write-Warning "    [WARN] $jiraTestKey is not in Test Execution $TEST_EXECUTION_KEY — skipping. ($($_.Exception.Message))"
+                continue
+            }
 
             $testRunId = $testRunResponse.id
 
@@ -108,15 +92,12 @@ foreach ($jobPid in $jobPids) {
                 continue
             }
 
-            # Update the test run status
-            $statusBody = @{ status = $scenarioStatus } | ConvertTo-Json -Compress
-
+            # Update the test run status — Xray Server/DC takes status as a query parameter
             try {
                 Invoke-RestMethod `
-                    -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/status" `
+                    -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/status?status=$scenarioStatus" `
                     -Method Put `
-                    -Headers $jiraHeaders `
-                    -Body $statusBody | Out-Null
+                    -Headers $jiraHeaders | Out-Null
 
                 Write-Host "    [OK]   $jiraTestKey <- scenario `"$scenarioName`" -> $scenarioStatus"
             }
