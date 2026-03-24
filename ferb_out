@@ -1,10 +1,9 @@
 ==> Processing AccelQ job PID: 101919
     Overall status: completed
-    [FAIL] SRCWEBRED-534 <- scenario "CBC 404 Page" -> 500: The remote server returned an error: (500) Internal Server Error.
-Invoke-RestMethod : Test Run not found for Test Execution with key SRCWEBRED-567 and Test issue with key SRCWEBRED-533.
-At C:\Users\C1CXF05\Documents\ACCELQ_to_Xray_Integration\test_execution_pipeline.ps1:99 char:32
-+             $testRunResponse = Invoke-RestMethod `
-+                                ~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
-    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
-    [FAIL] SRCWEBRED-533 <- scenario "CCO 404 Page" -> 500: The remote server returned an error: (500) Internal Server Error.
+    [OK]   SRCWEBRED-534 <- scenario "CBC 404 Page" -> PASS
+    [DEBUG] Current comment schema: {
+    "raw":  "{\"comment\":\"AccelQ Result for \\u0027CBC 404 Page\\u0027: https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\\u0026jobPid=101919\\u0026testTypePid=0\\u0026scnPid=58689\\u0026testCasePid=129757\\u0026isAccessAllTC=true\"}",
+    "rendered":  "{\"comment\":\"AccelQ Result for \\u0027CBC 404 Page\\u0027: https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\\u0026jobPid=101919\\u0026testTypePid=0\\u0026scnPid=58689\\u0026testCasePid=129757\\u0026isAccessAllTC=true\"}"
+}
+    [DEBUG] Sending comment body: {"comment":"AccelQ Result for \u0027CBC 404 Page\u0027: https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\u0026jobPid=101919\u0026testTypePid=0\u0026scnPid=58689\u0026testCasePid=129757\u0026isAccessAllTC=true"}
+    [OK]   SRCWEBRED-534 <- AccelQ result link attached as comment
