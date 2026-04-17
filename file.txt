@@ -1,155 +1,59 @@
-# =============================================================================
-# sync_accelq_to_xray.ps1
-#
-# Fetches AccelQ scenario results for a given Job ID, then updates the
-# corresponding Jira Xray test run statuses via the Xray REST API.
-#
-# Fill in the variables below before running.
-# =============================================================================
-
-# ── User-configurable variables ───────────────────────────────────────────────
-
-$ACCELQ_EMAIL = "a@a.com"           # Your AccelQ login email
-$ACCELQ_DOMAIN = "accelq.example.pvt" # Hostname only (no https://)
-$ACCELQ_API_KEY = "aaaaaaaaaaaaaa"    # Found in AccelQ Auth Properties
-$ACCELQ_PROJECT = "a_project"         # Project Code from AccelQ Auth Properties
-$ACCELQ_TENANT = "aaa"               # Tenant Code from AccelQ Auth Properties
-$ACCELQ_JOB_ID = 101010              # AccelQ Job ID whose results should be synced
-
-$JIRA_DOMAIN = "a.jira.org"        # Jira hostname only (no https://)
-$JIRA_PAT = "aaaaaaaaaaaaa"     # Jira Personal Access Token
-$TEST_EXECUTION_KEY = "ABC-123"         # Jira Test Execution issue key (e.g. PROJ-123)
-
-# ─────────────────────────────────────────────────────────────────────────────
-
-$ACCELQ_RUNS_LIST_URL = "https://$ACCELQ_DOMAIN/awb/api/$ACCELQ_TENANT/$ACCELQ_PROJECT/v1/ext-access/runs"
-$ACCELQ_RUN_STATUS_URL = "https://$ACCELQ_DOMAIN/awb/api/1.0/$ACCELQ_TENANT/runs"
-
-$accelqHeaders = @{
-    "api_key"      = $ACCELQ_API_KEY
-    "user_id"      = $ACCELQ_EMAIL
-    "Content-Type" = "application/json"
-    "Accept"       = "application/json"
-}
-
-$jiraHeaders = @{
-    "Authorization" = "Bearer $JIRA_PAT"
-    "Accept"        = "application/json"
-    "Content-Type"  = "application/json"
-}
-
-# ── Step 1: Get all AccelQ run PIDs for this job ──────────────────────────────
-
-Write-Host "==> Fetching AccelQ runs for job ID $ACCELQ_JOB_ID..."
-Write-Host "    Targeting Jira Test Execution: $TEST_EXECUTION_KEY"
-
-$runsBody = @{
-    pageNum  = 1
-    pageSize = 100
-    filter   = @{ jobPidList = @($ACCELQ_JOB_ID) }
-} | ConvertTo-Json -Compress
-
-$runsResponse = Invoke-RestMethod -Uri $ACCELQ_RUNS_LIST_URL -Method Post -Headers $accelqHeaders -Body $runsBody
-
-Write-Host "==> Raw response from AccelQ:"
-$runsResponse | ConvertTo-Json -Depth 10
-
-if (-not $runsResponse.data -or $runsResponse.data.Count -eq 0) {
-    Write-Error "ERROR: No runs found for job ID $ACCELQ_JOB_ID."
-    exit 1
-}
-
-Write-Host "==> Properties on first data item:"
-$runsResponse.data[0] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
-
-$jobPids = $runsResponse.data | Select-Object -ExpandProperty jobPid
-Write-Host "    Found $($jobPids.Count) run(s)."
-
-# ── Step 2: For each run, loop over scenarios and update Xray ─────────────────
-
-foreach ($jobPid in $jobPids) {
-    Write-Host ""
-    Write-Host "==> Processing AccelQ job PID: $jobPid"
-
-    $runDetail = Invoke-RestMethod -Uri "$ACCELQ_RUN_STATUS_URL/$jobPid" -Method Get -Headers $accelqHeaders
-
-    Write-Host "    Overall status: $($runDetail.summary.status)"
-
-    $scenarioList = $runDetail.summary.scenarioList
-    $testCaseSummaries = $runDetail.summary.testCaseSummaryList
-
-    foreach ($tc in $testCaseSummaries) {
-        # Skip scenarios that did not run
-        if ($tc.status -ne "pass" -and $tc.status -ne "fail") { continue }
-
-        $scenarioStatus = $tc.status.ToUpper()
-        $scenarioName = $tc.name
-
-        # Cross-reference scnPid -> scenarioList[].dbPid to get jiraStoryList
-        $matchedScenario = $scenarioList | Where-Object { $_.dbPid -eq $tc.scnPid }
-        $jiraTestKeys = $matchedScenario.jiraStoryList | Select-Object -ExpandProperty key
-
-        if (-not $jiraTestKeys -or $jiraTestKeys.Count -eq 0) {
-            Write-Host "    [SKIP] No linked Jira test cases for scenario: `"$scenarioName`""
-            continue
-        }
-
-        foreach ($jiraTestKey in $jiraTestKeys) {
-            # Look up the Xray test run ID within the target Test Execution
-            try {
-                $testRunResponse = Invoke-RestMethod `
-                    -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun?testExecIssueKey=$TEST_EXECUTION_KEY&testIssueKey=$jiraTestKey" `
-                    -Method Get `
-                    -Headers $jiraHeaders
-            }
-            catch {
-                Write-Warning "    [WARN] $jiraTestKey is not in Test Execution $TEST_EXECUTION_KEY - skipping. ($($_.Exception.Message))"
-                continue
-            }
-
-            $testRunId = $testRunResponse.id
-
-            if (-not $testRunId) {
-                Write-Warning "    [WARN] No test run found for $jiraTestKey in $TEST_EXECUTION_KEY (scenario: `"$scenarioName`")"
-                continue
-            }
-
-            # Update the test run status — Xray Server/DC takes status as a query parameter
-            try {
-                Invoke-RestMethod `
-                    -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/status?status=$scenarioStatus" `
-                    -Method Put `
-                    -Headers $jiraHeaders | Out-Null
-
-                Write-Host "    [OK]   $jiraTestKey <- scenario `"$scenarioName`" -> $scenarioStatus"
-            }
-            catch {
-                Write-Host "    [FAIL] $jiraTestKey <- scenario `"$scenarioName`" -> $($_.Exception.Response.StatusCode.value__): $($_.Exception.Message)"
-            }
-
-            # Attach AccelQ result link as a comment on the test run
-            if ($tc.extResultLink) {
-                $url = [string]$tc.extResultLink
-                $commentText = "AccelQ Result for '$scenarioName': $url"
-                # Build JSON manually so & is NOT encoded as \u0026 (ConvertTo-Json would break the URL)
-                $escaped = $commentText -replace '\\', '\\' -replace '"', '\"'
-                $commentBody = "`"$escaped`""
-                try {
-                    Invoke-RestMethod `
-                        -Uri "https://$JIRA_DOMAIN/rest/raven/1.0/api/testrun/$testRunId/comment" `
-                        -Method Put `
-                        -Headers $jiraHeaders `
-                        -Body $commentBody | Out-Null
-
-                    Write-Host "    [OK]   $jiraTestKey <- AccelQ result link attached as comment"
-                }
-                catch {
-                    Write-Host "    [FAIL] $jiraTestKey <- comment update -> $($_.Exception.Response.StatusCode.value__): $($_.Exception.Message)"
-                }
-            }
-        }
-    }
-}
-
-Write-Host ""
-Write-Host "==> Done."
+15:44:52.514 [http-nio-auto-1-exec-8] ERROR o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is java.lang.IllegalArgumentException: Name for argument of type [java.lang.String] not specified, and parameter name information not found in class file either.] with root cause
+java.lang.IllegalArgumentException: Name for argument of type [java.lang.String] not specified, and parameter name information not found in class file either.
+	at org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver.updateNamedValueInfo(AbstractNamedValueMethodArgumentResolver.java:177)
+	at org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver.getNamedValueInfo(AbstractNamedValueMethodArgumentResolver.java:154)
+	at org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver.resolveArgument(AbstractNamedValueMethodArgumentResolver.java:99)
+	at org.springframework.web.method.support.HandlerMethodArgumentResolverComposite.resolveArgument(HandlerMethodArgumentResolverComposite.java:122)
+	at org.springframework.web.method.support.InvocableHandlerMethod.getMethodArgumentValues(InvocableHandlerMethod.java:179)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:146)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1067)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:963)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doPut(FrameworkServlet.java:920)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:558)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:623)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:199)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at com.accelq.agent.filter.BaseCorsFilter.doFilter(Unknown Source)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at org.springframework.boot.actuate.metrics.web.servlet.WebMvcMetricsFilter.doFilterInternal(WebMvcMetricsFilter.java:96)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:168)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:130)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:346)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:935)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1826)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+	at java.base/java.lang.Thread.run(Thread.java:834)
