@@ -1,59 +1,122 @@
-15:44:52.514 [http-nio-auto-1-exec-8] ERROR o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is java.lang.IllegalArgumentException: Name for argument of type [java.lang.String] not specified, and parameter name information not found in class file either.] with root cause
-java.lang.IllegalArgumentException: Name for argument of type [java.lang.String] not specified, and parameter name information not found in class file either.
-	at org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver.updateNamedValueInfo(AbstractNamedValueMethodArgumentResolver.java:177)
-	at org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver.getNamedValueInfo(AbstractNamedValueMethodArgumentResolver.java:154)
-	at org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver.resolveArgument(AbstractNamedValueMethodArgumentResolver.java:99)
-	at org.springframework.web.method.support.HandlerMethodArgumentResolverComposite.resolveArgument(HandlerMethodArgumentResolverComposite.java:122)
-	at org.springframework.web.method.support.InvocableHandlerMethod.getMethodArgumentValues(InvocableHandlerMethod.java:179)
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:146)
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1067)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:963)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
-	at org.springframework.web.servlet.FrameworkServlet.doPut(FrameworkServlet.java:920)
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:558)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:623)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:199)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at com.accelq.agent.filter.BaseCorsFilter.doFilter(Unknown Source)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at org.springframework.boot.actuate.metrics.web.servlet.WebMvcMetricsFilter.doFilterInternal(WebMvcMetricsFilter.java:96)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:168)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:144)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:168)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:130)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:346)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:935)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1826)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
-	at java.base/java.lang.Thread.run(Thread.java:834)
+param(
+    [Parameter(Mandatory)]
+    [string]$EnvironmentUrl,
+
+    [Parameter(Mandatory)]
+    [string]$TenantId,
+
+    [string]$JMeterPath = "C:\apache-jmeter\bin\jmeter.bat",
+
+    [Parameter(Mandatory)]
+    [string]$TestPlan,
+
+    [string]$ResultsDir = "$PSScriptRoot\results",
+    [int]$Threads = 10,
+    [int]$RampUp = 30,
+    [int]$Loops = 1,
+
+    [Parameter(Mandatory)]
+    [string]$ClientId
+)
+
+# Authentication
+
+$scope = $EnvironmentUrl.TrimEnd('/') + "/.default"
+
+# Request device code
+$deviceResponse = Invoke-RestMethod `
+    -Method POST `
+    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
+    -Body @{ client_id = $ClientId; scope = $scope } `
+    -ContentType "application/x-www-form-urlencoded"
+
+Write-Host $deviceResponse.message
+Write-Host ""
+
+# Keep contacting the server until login is done
+$tokenBody = @{
+    grant_type  = "urn:ietf:params:oauth:grant-type:device_code"
+    client_id   = $ClientId
+    device_code = $deviceResponse.device_code
+}
+
+$accessToken = $null
+$interval = [int]$deviceResponse.interval
+while ($null -eq $accessToken) {
+    Start-Sleep -Seconds $interval
+    try {
+        $tokenResponse = Invoke-RestMethod `
+            -Method POST `
+            -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+            -Body $tokenBody `
+            -ContentType "application/x-www-form-urlencoded" `
+            -ErrorAction Stop
+        $accessToken = $tokenResponse.access_token
+    }
+    catch {
+        $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
+        if ($err -eq "authorization_pending") { continue }
+        elseif ($err -eq "slow_down") { $interval += 5; continue }
+        elseif ($err -eq "authorization_declined") { Write-Error "Login was declined."; exit 1 }
+        elseif ($err -eq "expired_token") { Write-Error "Device code expired."; exit 1 }
+        else { Write-Error $_; exit 1 }
+    }
+}
+
+Write-Host "Authenticated successfully."
+
+# Checks before running script
+
+if (-not (Test-Path $JMeterPath)) {
+    Write-Error "JMeter not found at '$JMeterPath'. Pass -JMeterPath to your jmeter.bat location."
+    exit 1
+}
+
+if (-not (Test-Path $TestPlan)) {
+    Write-Error "Test plan not found at '$TestPlan'."
+    exit 1
+}
+
+$jmxContent = Get-Content $TestPlan -Raw
+
+# Check to make sure all the expected variables are found in the .jmx file
+$missing = @()
+if ($jmxContent -notmatch '\$\{__P\(thread_count') { $missing += 'thread_count' }
+if ($jmxContent -notmatch '\$\{__P\(ramp_up') { $missing += 'ramp_up' }
+if ($jmxContent -notmatch '\$\{__P\(loop_count') { $missing += 'loop_count' }
+
+if ($missing.Count -gt 0) {
+    Write-Error "Test plan is missing `${__P(...)} references for: $($missing -join ', ')."
+    exit 1
+}
+
+# Running JMeter Test Plan
+
+$hostname = ([System.Uri]$EnvironmentUrl).Host
+$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$runDir = Join-Path $ResultsDir $timestamp
+$jtlFile = Join-Path $runDir "results.jtl"
+$reportDir = Join-Path $runDir "report"
+
+New-Item -ItemType Directory -Path $runDir -Force | Out-Null
+
+Write-Host "Running JMeter with $Threads thread(s), ramp-up ${RampUp}s, $Loops loop(s)..."
+& $JMeterPath `
+    -n `
+    -t $TestPlan `
+    -l $jtlFile `
+    -e `
+    -o $reportDir `
+    "-Jauth_token=Bearer $accessToken" `
+    "-Jbase_url=$hostname" `
+    "-Jthread_count=$Threads" `
+    "-Jramp_up=$RampUp" `
+    "-Jloop_count=$Loops"
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Done. Report saved to: $reportDir"
+    Start-Process (Join-Path $reportDir "index.html")
+}
+else {
+    Write-Error "JMeter exited with code $LASTEXITCODE. Check $runDir for details."
+}
