@@ -8,7 +8,7 @@ param(
     [string]$JMeterPath = "C:\apache-jmeter\bin\jmeter.bat",
 
     [Parameter(Mandatory)]
-    [string]$TestPlan,
+    [string]$TestPlanPath,
 
     [string]$ResultsDir = "$PSScriptRoot\results",
     [int]$Threads = 10,
@@ -18,6 +18,36 @@ param(
     [Parameter(Mandatory)]
     [string]$ClientId
 )
+
+# Checks before running script
+
+if (-not (Test-Path $JMeterPath)) {
+    Write-Error "JMeter not found at '$JMeterPath'. Pass -JMeterPath to your jmeter.bat location."
+    exit 1
+}
+
+if (-not (Test-Path $TestPlanPath)) {
+    Write-Error "Test plan not found at '$TestPlanPath'."
+    exit 1
+}
+
+if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]::Absolute))) {
+    Write-Error "EnvironmentUrl '$EnvironmentUrl' is not a valid URL."
+    exit 1
+}
+
+$jmxContent = Get-Content $TestPlanPath -Raw
+
+# Check to make sure all the expected variables are found in the .jmx file
+$missing = @()
+if ($jmxContent -notmatch '\$\{__P\(thread_count') { $missing += 'thread_count' }
+if ($jmxContent -notmatch '\$\{__P\(ramp_up') { $missing += 'ramp_up' }
+if ($jmxContent -notmatch '\$\{__P\(loop_count') { $missing += 'loop_count' }
+
+if ($missing.Count -gt 0) {
+    Write-Error "Test plan is missing `${__P(...)} references for: $($missing -join ', ')."
+    exit 1
+}
 
 # Authentication
 
@@ -65,31 +95,6 @@ while ($null -eq $accessToken) {
 
 Write-Host "Authenticated successfully."
 
-# Checks before running script
-
-if (-not (Test-Path $JMeterPath)) {
-    Write-Error "JMeter not found at '$JMeterPath'. Pass -JMeterPath to your jmeter.bat location."
-    exit 1
-}
-
-if (-not (Test-Path $TestPlan)) {
-    Write-Error "Test plan not found at '$TestPlan'."
-    exit 1
-}
-
-$jmxContent = Get-Content $TestPlan -Raw
-
-# Check to make sure all the expected variables are found in the .jmx file
-$missing = @()
-if ($jmxContent -notmatch '\$\{__P\(thread_count') { $missing += 'thread_count' }
-if ($jmxContent -notmatch '\$\{__P\(ramp_up') { $missing += 'ramp_up' }
-if ($jmxContent -notmatch '\$\{__P\(loop_count') { $missing += 'loop_count' }
-
-if ($missing.Count -gt 0) {
-    Write-Error "Test plan is missing `${__P(...)} references for: $($missing -join ', ')."
-    exit 1
-}
-
 # Running JMeter Test Plan
 
 $hostname = ([System.Uri]$EnvironmentUrl).Host
@@ -100,10 +105,9 @@ $reportDir = Join-Path $runDir "report"
 
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 
-Write-Host "Running JMeter with $Threads thread(s), ramp-up ${RampUp}s, $Loops loop(s)..."
 & $JMeterPath `
     -n `
-    -t $TestPlan `
+    -t $TestPlanPath `
     -l $jtlFile `
     -e `
     -o $reportDir `
