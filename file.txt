@@ -5,7 +5,11 @@ param(
     [Parameter(Mandatory)]
     [string]$TenantId,
 
-    [string]$JMeterPath = "C:\apache-jmeter\bin\jmeter.bat",
+    [Parameter(Mandatory)]
+    [string]$ClientId,
+
+    [Parameter(Mandatory)]
+    [string]$JMeterPath,
 
     [Parameter(Mandatory)]
     [string]$TestPlanPath,
@@ -13,10 +17,7 @@ param(
     [string]$ResultsDir = "$PSScriptRoot\results",
     [int]$Threads = 10,
     [int]$RampUp = 30,
-    [int]$Loops = 1,
-
-    [Parameter(Mandatory)]
-    [string]$ClientId
+    [int]$Loops = 1
 )
 
 # Checks before running script
