@@ -37,19 +37,6 @@ if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]:
     exit 1
 }
 
-$jmxContent = Get-Content $TestPlanPath -Raw
-
-# Check to make sure all the expected variables are found in the .jmx file
-$missing = @()
-if ($jmxContent -notmatch '\$\{__P\(thread_count') { $missing += 'thread_count' }
-if ($jmxContent -notmatch '\$\{__P\(ramp_up') { $missing += 'ramp_up' }
-if ($jmxContent -notmatch '\$\{__P\(loop_count') { $missing += 'loop_count' }
-
-if ($missing.Count -gt 0) {
-    Write-Error "Test plan is missing `${__P(...)} references for: $($missing -join ', ')."
-    exit 1
-}
-
 # Authentication
 
 $scope = $EnvironmentUrl.TrimEnd('/') + "/.default"
