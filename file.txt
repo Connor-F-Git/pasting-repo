@@ -1,15 +1,10 @@
-const origOpen = XMLHttpRequest.prototype.open;
-const origSend = XMLHttpRequest.prototype.send;
-
-XMLHttpRequest.prototype.open = function(method, url) {
-    this._url = url;
-    return origOpen.apply(this, arguments);
-};
-
-XMLHttpRequest.prototype.send = function(body) {
-    if (this._url && this._url.includes('$batch') && body) {
+const origFetch = window.fetch;
+window.fetch = async function(...args) {
+    const url = typeof args[0] === 'string' ? args[0] : args[0].url;
+    const body = args[1]?.body;
+    if (url && url.includes('$batch') && body) {
         console.log('=== BATCH REQUEST ===');
         console.log(body);
     }
-    return origSend.apply(this, arguments);
+    return origFetch.apply(this, args);
 };
