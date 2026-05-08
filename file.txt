@@ -1,114 +1,15 @@
-param(
-    [Parameter(Mandatory)]
-    [string]$EnvironmentUrl,
+const origOpen = XMLHttpRequest.prototype.open;
+const origSend = XMLHttpRequest.prototype.send;
 
-    [Parameter(Mandatory)]
-    [string]$TenantId,
+XMLHttpRequest.prototype.open = function(method, url) {
+    this._url = url;
+    return origOpen.apply(this, arguments);
+};
 
-    [Parameter(Mandatory)]
-    [string]$ClientId,
-
-    [Parameter(Mandatory)]
-    [string]$JMeterPath,
-
-    [Parameter(Mandatory)]
-    [string]$TestPlanPath,
-
-    [string]$ResultsDir = "$PSScriptRoot\results",
-    [int]$Threads = 10,
-    [int]$RampUp = 30,
-    [int]$Loops = 1
-)
-
-# Checks before running script
-
-if (-not (Test-Path $JMeterPath)) {
-    Write-Error "JMeter not found at '$JMeterPath'. Pass -JMeterPath to your jmeter.bat location."
-    exit 1
-}
-
-if (-not (Test-Path $TestPlanPath)) {
-    Write-Error "Test plan not found at '$TestPlanPath'."
-    exit 1
-}
-
-if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]::Absolute))) {
-    Write-Error "EnvironmentUrl '$EnvironmentUrl' is not a valid URL."
-    exit 1
-}
-
-# Authentication
-
-$scope = $EnvironmentUrl.TrimEnd('/') + "/.default"
-
-# Request device code
-$deviceResponse = Invoke-RestMethod `
-    -Method POST `
-    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
-    -Body @{ client_id = $ClientId; scope = $scope } `
-    -ContentType "application/x-www-form-urlencoded"
-
-Write-Host $deviceResponse.message
-Write-Host ""
-
-# Keep contacting the server until login is done
-$tokenBody = @{
-    grant_type  = "urn:ietf:params:oauth:grant-type:device_code"
-    client_id   = $ClientId
-    device_code = $deviceResponse.device_code
-}
-
-$accessToken = $null
-$interval = [int]$deviceResponse.interval
-while ($null -eq $accessToken) {
-    Start-Sleep -Seconds $interval
-    try {
-        $tokenResponse = Invoke-RestMethod `
-            -Method POST `
-            -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-            -Body $tokenBody `
-            -ContentType "application/x-www-form-urlencoded" `
-            -ErrorAction Stop
-        $accessToken = $tokenResponse.access_token
+XMLHttpRequest.prototype.send = function(body) {
+    if (this._url && this._url.includes('$batch') && body) {
+        console.log('=== BATCH REQUEST ===');
+        console.log(body);
     }
-    catch {
-        $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
-        if ($err -eq "authorization_pending") { continue }
-        elseif ($err -eq "slow_down") { $interval += 5; continue }
-        elseif ($err -eq "authorization_declined") { Write-Error "Login was declined."; exit 1 }
-        elseif ($err -eq "expired_token") { Write-Error "Device code expired."; exit 1 }
-        else { Write-Error $_; exit 1 }
-    }
-}
-
-Write-Host "Authenticated successfully."
-
-# Running JMeter Test Plan
-
-$hostname = ([System.Uri]$EnvironmentUrl).Host
-$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$runDir = Join-Path $ResultsDir $timestamp
-$jtlFile = Join-Path $runDir "results.jtl"
-$reportDir = Join-Path $runDir "report"
-
-New-Item -ItemType Directory -Path $runDir -Force | Out-Null
-
-& $JMeterPath `
-    -n `
-    -t $TestPlanPath `
-    -l $jtlFile `
-    -e `
-    -o $reportDir `
-    "-Jauth_token=Bearer $accessToken" `
-    "-Jbase_url=$hostname" `
-    "-Jthread_count=$Threads" `
-    "-Jramp_up=$RampUp" `
-    "-Jloop_count=$Loops"
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Done. Report saved to: $reportDir"
-    Start-Process (Join-Path $reportDir "index.html")
-}
-else {
-    Write-Error "JMeter exited with code $LASTEXITCODE. Check $runDir for details."
-}
+    return origSend.apply(this, arguments);
+};
