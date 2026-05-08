@@ -1,10 +1,22 @@
+window._batchLogs = [];
+
 const origFetch = window.fetch;
 window.fetch = async function(...args) {
-    const url = typeof args[0] === 'string' ? args[0] : args[0].url;
-    const body = args[1]?.body;
-    if (url && url.includes('$batch') && body) {
-        console.log('=== BATCH REQUEST ===');
-        console.log(body);
+    const req = args[0] instanceof Request ? args[0] : new Request(...args);
+    if (req.url.includes('$batch')) {
+        const clone = req.clone();
+        clone.text().then(body => {
+            window._batchLogs.push(body);
+            console.log('Captured batch #' + window._batchLogs.length);
+        });
     }
     return origFetch.apply(this, args);
 };
+
+
+
+
+
+
+
+copy(window._batchLogs.join('\n\n=== NEXT BATCH ===\n\n'));
