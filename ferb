@@ -1,64 +1,33 @@
-import json
+$harFile = "powerapp_load.har"
+$outputFile = "all_raw_batch_requests.txt"
 
-# Config
-har_filename = 'powerapp_load.har'
-output_filename = 'all_raw_batch_requests.txt'
+# Read and parse the HAR JSON file
+$har = Get-Content -Raw -Encoding UTF8 $harFile | ConvertFrom-Json
+$entries = $har.log.entries
+$batchCount = 0
 
-with open(har_filename, 'r', encoding='utf-8') as f:
-    har_data = json.load(f)
+# Create or clear the output file
+Set-Content -Path $outputFile -Value $null
 
-entries = har_data.get('log', {}).get('entries', [])
-batch_count = 0
-
-with open(output_filename, 'w', encoding='utf-8') as out_file:
-    for entry in entries:
-        request = entry.get('request', {})
-        url = request.get('url', '')
+foreach ($entry in $entries) {
+    # Check if URL contains $batch (single quotes prevent PowerShell from treating $ as a variable)
+    if ($entry.request.url -like '*$batch*') {
+        $rawBody = $entry.request.postData.text
         
-        # Target only the $batch network flights
-        if '$batch' in url:
-            post_data = request.get('postData', {})
-            raw_body = post_data.get('text', '')
+        if ($rawBody) {
+            $batchCount++
             
-            if raw_body:
-                batch_count += 1
-                
-                # Visual delimiter for the single file
-                out_file.write(f"========================================\n")
-                out_file.write(f"=== BATCH REQUEST #{batch_count} ===\n")
-                out_file.write(f"========================================\n\n")
-                
-                # Write the 100% raw unaltered payload body
-                out_file.write(raw_body)
-                
-                # Space out the next request
-                out_file.write("\n\n\n")
+            # Construct the visual delimiters
+            $delimiter = "========================================`n" +
+                         "=== BATCH REQUEST #$batchCount ===`n" +
+                         "========================================`n`n"
+            
+            # Append the delimiter and raw payload to the single file
+            Add-Content -Path $outputFile -Value $delimiter
+            Add-Content -Path $outputFile -Value $rawBody
+            Add-Content -Path $outputFile -Value "`n`n`n"
+        }
+    }
+}
 
-print(f"Success! Extracted {batch_count} raw $batch payloads into '{output_filename}'.")========================================
-=== BATCH REQUEST #1 ===
-========================================
-
---batch_batchId-11111111-2222-3333-4444-555555555555
-Content-Type: application/http
-Content-Transfer-Encoding: binary
-
-GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Coordinator%27...
-Accept: application/json
-Prefer: odata.maxpagesize=1,odata.include-annotations=*
-
---batch_batchId-11111111-2222-3333-4444-555555555555--
-
-
-========================================
-=== BATCH REQUEST #2 ===
-========================================
-
---batch_batchId-abcdef67-890a-bcde-f012-34567890abcd
-Content-Type: application/http
-Content-Transfer-Encoding: binary
-
-GET cr9da_fsn_screeningreasons?%24orderby=cr9da_title+asc...
-Accept: application/json
-Prefer: odata.maxpagesize=2000,odata.include-annotations=*
-
---batch_batchId-abcdef67-890a-bcde-f012-34567890abcd--
+Write-Host "Success! Extracted $batchCount raw `$batch payloads into '$outputFile'."
