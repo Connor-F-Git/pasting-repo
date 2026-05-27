@@ -1,8 +1,6 @@
-Content-Type: application/http
-Content-Transfer-Encoding: binary
-GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Coordinator%27&
-%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&
-%24top=1&
-%24count=true HTTP/1.1
-Accept: application/json
-Prefer: odata.maxpagesize=1,odata.include-annotations=*
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Coordinator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1	odata.maxpagesize=1,odata.include-annotations=*	application/json
+GET cr9da_fsn_screeningreasons?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_screeningreasonid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1	odata.maxpagesize=2000,odata.include-annotations=*	application/json
+GET cr9da_fsn_nationallineofbusinesses?%24orderby=cr9da_order+asc&%24select=cr9da_fsn_nationallineofbusinessid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1	odata.maxpagesize=2000,odata.include-annotations=*	application/json
+GET cr9da_fsn_citizenships?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_citizenshipid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1	odata.maxpagesize=2000,odata.include-annotations=*	application/json
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Screening+Partner%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1	odata.maxpagesize=1,odata.include-annotations=*	application/json
+GET cr9da_fsn_districts?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_districtid%2Ccr9da_title&%24count=true HTTP/1.1	odata.maxpagesize=2000,odata.include-annotations=*	application/json
