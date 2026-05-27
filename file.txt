@@ -1,22 +1,8 @@
-window._batchLogs = [];
-
-const origFetch = window.fetch;
-window.fetch = async function(...args) {
-    const req = args[0] instanceof Request ? args[0] : new Request(...args);
-    if (req.url.includes('$batch')) {
-        const clone = req.clone();
-        clone.text().then(body => {
-            window._batchLogs.push(body);
-            console.log('Captured batch #' + window._batchLogs.length);
-        });
-    }
-    return origFetch.apply(this, args);
-};
-
-
-
-
-
-
-
-copy(window._batchLogs.join('\n\n=== NEXT BATCH ===\n\n'));
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Coordinator%27&
+%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&
+%24top=1&
+%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
