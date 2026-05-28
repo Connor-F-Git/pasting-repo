@@ -1,9 +1,342 @@
-==> Processing AccelQ job PID: 101919
-    Overall status: completed
-    [OK]   SRCWEBRED-534 <- scenario "CBC 404 Page" -> PASS
-    [DEBUG] Current comment schema: {
-    "raw":  "{\"comment\":\"AccelQ Result for \\u0027CBC 404 Page\\u0027: https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\\u0026jobPid=101919\\u0026testTypePid=0\\u0026scnPid=58689\\u0026testCasePid=129757\\u0026isAccessAllTC=true\"}",
-    "rendered":  "{\"comment\":\"AccelQ Result for \\u0027CBC 404 Page\\u0027: https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\\u0026jobPid=101919\\u0026testTypePid=0\\u0026scnPid=58689\\u0026testCasePid=129757\\u0026isAccessAllTC=true\"}"
-}
-    [DEBUG] Sending comment body: {"comment":"AccelQ Result for \u0027CBC 404 Page\u0027: https://accelq.prod.plz-testing.awscfs.frb.pvt/#/forward?tenantCode=frb\u0026projectCode=PHL_SQA_3SRC_Websites_Redesign\u0026jobPid=101919\u0026testTypePid=0\u0026scnPid=58689\u0026testCasePid=129757\u0026isAccessAllTC=true"}
-    [OK]   SRCWEBRED-534 <- AccelQ result link attached as comment
+========================================
+=== BATCH REQUEST #1 ===
+========================================
+
+
+--batch_4dc81208-7d09-4e46-ae93-e64f1399281a
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Coordinator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_4dc81208-7d09-4e46-ae93-e64f1399281a--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #2 ===
+========================================
+
+
+--batch_b18dc205-a894-4f16-8173-0b3af41be204
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_screeningreasons?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_screeningreasonid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_b18dc205-a894-4f16-8173-0b3af41be204--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #3 ===
+========================================
+
+
+--batch_a3cb3279-cc16-4c5b-986f-572771ceb517
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_nationallineofbusinesses?%24orderby=cr9da_order+asc&%24select=cr9da_fsn_nationallineofbusinessid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_a3cb3279-cc16-4c5b-986f-572771ceb517--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #4 ===
+========================================
+
+
+--batch_8cf772c2-96b9-4975-a0f8-c81df9297d33
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_citizenships?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_citizenshipid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_8cf772c2-96b9-4975-a0f8-c81df9297d33--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #5 ===
+========================================
+
+
+--batch_24b98f4b-aa1b-4a7b-ae54-f7c7741dd9c8
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Screening+Partner%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_24b98f4b-aa1b-4a7b-ae54-f7c7741dd9c8--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #6 ===
+========================================
+
+
+--batch_4d05e5d2-5ff8-4e5c-aed6-a39bc1eecc25
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_districts?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_districtid%2Ccr9da_title&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_4d05e5d2-5ff8-4e5c-aed6-a39bc1eecc25--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #7 ===
+========================================
+
+
+--batch_fab868eb-abcf-4495-b161-79f4e4f5e880
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24orderby=cr9da_description+asc&%24select=cr9da_description%2Ccr9da_fsn_rolesid&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_fab868eb-abcf-4495-b161-79f4e4f5e880--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #8 ===
+========================================
+
+
+--batch_698641c7-bd9c-4230-9084-013469adbc39
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Philadelphia+Coordinator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_698641c7-bd9c-4230-9084-013469adbc39--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #9 ===
+========================================
+
+
+--batch_14eae21e-8d41-496f-afc0-de663434f484
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_vendorscreeningpackageses?%24orderby=cr9da_order+asc&%24select=cr9da_fsn_vendorscreeningpackagesid%2Ccr9da_order%2Ccr9da_packagename&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_14eae21e-8d41-496f-afc0-de663434f484--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #10 ===
+========================================
+
+
+--batch_7a473532-9b7e-4d72-8bce-37cd1cf171da
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_safrscreeningpackageses?%24orderby=cr9da_title+asc&%24select=cr9da_fsn_safrscreeningpackagesid%2Ccr9da_order%2Ccr9da_title&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_7a473532-9b7e-4d72-8bce-37cd1cf171da--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #11 ===
+========================================
+
+
+--batch_0800458a-68ef-4376-929b-73be44ba31e6
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_screeningses?%24orderby=cr9da_expedite+desc&%24select=cap_lastescalationdate%2Ccr9da_activeinactive%2Ccr9da_assignedtodisplayname%2Ccr9da_assignedtoemail%2Ccr9da_assignedtopreviousemail%2Ccr9da_businessline%2Ccr9da_candidateemail%2Ccr9da_citizenship%2Ccr9da_creditcheck%2Ccr9da_datesenttoadjudicator%2Ccr9da_datesummarycomplete%2Ccr9da_datevendoremailsent%2Ccr9da_dmv%2Ccr9da_drugscreening%2Ccr9da_employeedisplayname%2Ccr9da_employeeemail%2Ccr9da_employeeid%2Ccr9da_employeestartdate%2Ccr9da_enhancedbackgroundscreening%2Ccr9da_expedite%2Ccr9da_fbifingerprinting%2Ccr9da_fingerprintlocation%2Ccr9da_firstname%2Ccr9da_fsn_screeningsid%2Ccr9da_hiringmanagerdisplayname%2Ccr9da_hiringmanageremail%2Ccr9da_lastname%2Ccr9da_marijuana%2Ccr9da_mediascreening%2Ccr9da_middlename%2Ccr9da_notes%2Ccr9da_otherscreeningreason%2Ccr9da_pdqidentifier%2Ccr9da_provisionalstart%2Ccr9da_readyforhire%2Ccr9da_requestedbydisplayname%2Ccr9da_requestedbyemail%2Ccr9da_requestingdistrict%2Ccr9da_safrscreening%2Ccr9da_screeningreason%2Ccr9da_screeningstatus%2Ccr9da_socialmedia%2Ccr9da_spattestation%2Ccr9da_startdate%2Ccr9da_submissiondate%2Ccr9da_treasury%2Ccr9da_vendorscreeningpackages%2Ccr9da_workdayposition%2Ccr9da_workdayrecordupdated%2Ccr9da_workertype%2Ccreatedon&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=2000,odata.include-annotations=*
+
+--batch_0800458a-68ef-4376-929b-73be44ba31e6--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #12 ===
+========================================
+
+
+--batch_58717263-0e81-4270-9dc6-72602bc37dfb
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Philadelphia+Adjudicator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_58717263-0e81-4270-9dc6-72602bc37dfb--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #13 ===
+========================================
+
+
+--batch_1fb1be0c-661e-4279-89d0-1fd12b7322cc
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Cleveland+Coordinator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_1fb1be0c-661e-4279-89d0-1fd12b7322cc--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #14 ===
+========================================
+
+
+--batch_feb7e1a0-5265-4128-890c-a019a9878fb4
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Cleveland+Adjudicator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_feb7e1a0-5265-4128-890c-a019a9878fb4--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #15 ===
+========================================
+
+
+--batch_429c0aba-8efe-40d3-9b82-9ad344dd13cd
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Richmond+Coordinator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_429c0aba-8efe-40d3-9b82-9ad344dd13cd--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #16 ===
+========================================
+
+
+--batch_7e73c850-aa44-4c3e-be23-0618b9b58f93
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Richmond+Adjudicator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_7e73c850-aa44-4c3e-be23-0618b9b58f93--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #17 ===
+========================================
+
+
+--batch_2a55ec3b-136b-401c-9014-d9ddb5775012
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27FedScreen+Administrator%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_2a55ec3b-136b-401c-9014-d9ddb5775012--
+ 
+
+
+
+
+========================================
+=== BATCH REQUEST #18 ===
+========================================
+
+
+--batch_7d2e23cb-b950-42d1-83ed-122ea273933a
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+GET cr9da_fsn_roleses?%24filter=cr9da_description+eq+%27Production+Support%27&%24select=cr9da_description%2Ccr9da_fsn_rolesid%2Ccr9da_guid&%24top=1&%24count=true HTTP/1.1
+Accept: application/json
+Prefer: odata.maxpagesize=1,odata.include-annotations=*
+
+--batch_7d2e23cb-b950-42d1-83ed-122ea273933a--
+ 
+
+
+
+
