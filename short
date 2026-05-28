@@ -1,130 +1,142 @@
-<#
-.SYNOPSIS
-    Converts a browser .har file into a JMeter .jmx test plan.
-
-.DESCRIPTION
-    Reads captured HTTP requests from a HAR file exported from browser DevTools
-    and generates a JMeter test plan with one HTTP sampler per request.
-    Pass the output .jmx to Run-JMeter-Tests.ps1.
-
-.PARAMETER HarFile
-    Path to the .har file.
-
-.PARAMETER OutputJmx
-    Output .jmx path. Defaults to the same name as HarFile with .jmx extension.
-
-.PARAMETER UrlFilter
-    Only include requests whose URL contains this string.
-    Default: '/api/data/' (Dataverse API calls only).
-    Set to '' to include every request in the HAR.
-
-.PARAMETER Threads
-    Default virtual user count written into the JMX (overridable at run time via -Jthread_count).
-
-.PARAMETER RampUp
-    Default ramp-up seconds written into the JMX (overridable at run time via -Jramp_up).
-
-.PARAMETER Loops
-    Default loop count written into the JMX (overridable at run time via -Jloop_count).
-
-.EXAMPLE
-    .\Convert-HarToJmx.ps1 -HarFile login.har
-    .\Convert-HarToJmx.ps1 -HarFile login.har -Threads 20 -RampUp 60
-    .\Convert-HarToJmx.ps1 -HarFile full-session.har -UrlFilter '' -OutputJmx full-session.jmx
-#>
 param(
-    [Parameter(Mandatory)]
-    [string]$HarFile,
-
+    [Parameter(Mandatory)][string]$HarFile,
     [string]$OutputJmx = '',
-
     [string]$UrlFilter = '/api/data/',
-
     [int]$Threads = 10,
     [int]$RampUp  = 30,
     [int]$Loops   = 1
 )
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 function ConvertTo-XmlText([string]$s) {
     [System.Security.SecurityElement]::Escape($s)
 }
 
-# ---------------------------------------------------------------------------
-# Validate
-# ---------------------------------------------------------------------------
+function Get-BatchSubRequests([string]$Body, [string]$MimeType, [string]$ApiBase) {
+    if ($MimeType -notmatch 'boundary=([^\s;]+)') { return @() }
+    $boundary = $Matches[1].Trim('"')
+    $results  = [System.Collections.Generic.List[object]]::new()
 
-if (-not (Test-Path $HarFile)) {
-    Write-Error "HAR file not found: $HarFile"
-    exit 1
+    foreach ($part in ($Body -split "--$([regex]::Escape($boundary))")) {
+        $trimmed = $part.Trim("`r`n ")
+        if (-not $trimmed -or $trimmed -eq '--') { continue }
+
+        $lines = $trimmed -split "`r?`n"
+
+        $innerStart = -1
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i].Trim() -eq '') { $innerStart = $i + 1; break }
+        }
+        if ($innerStart -lt 0 -or $innerStart -ge $lines.Count) { continue }
+
+        $tokens = $lines[$innerStart].Trim() -split '\s+'
+        if ($tokens.Count -lt 2) { continue }
+
+        $innerMethod = $tokens[0].ToUpper()
+        $innerPath   = $tokens[1]
+        if (-not $innerPath.StartsWith('/')) { $innerPath = "$ApiBase/$innerPath" }
+
+        $innerHeaders = @{}
+        $bodyStart    = -1
+        for ($i = $innerStart + 1; $i -lt $lines.Count; $i++) {
+            if ($lines[$i].Trim() -eq '') { $bodyStart = $i + 1; break }
+            $colonIdx = $lines[$i].IndexOf(':')
+            if ($colonIdx -gt 0) {
+                $innerHeaders[$lines[$i].Substring(0, $colonIdx).Trim()] = $lines[$i].Substring($colonIdx + 1).Trim()
+            }
+        }
+
+        $innerBody = ''
+        if ($bodyStart -gt 0 -and $bodyStart -lt $lines.Count) {
+            $innerBody = ($lines[$bodyStart..($lines.Count - 1)] -join "`n").Trim()
+        }
+
+        $results.Add([PSCustomObject]@{
+            Method  = $innerMethod
+            Path    = $innerPath
+            Headers = $innerHeaders
+            Body    = $innerBody
+        })
+    }
+
+    return $results
 }
 
-if (-not $OutputJmx) {
-    $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, '.jmx')
+function Get-SamplerLabel([string]$Method, [string]$Path) {
+    $rel       = $Path -replace '^/api/data/v[\d.]+/', ''
+    $selectIdx = $rel.IndexOf('select', [System.StringComparison]::OrdinalIgnoreCase)
+    if ($selectIdx -gt 0) { "$Method $($rel.Substring(0, $selectIdx))" }
+    else                  { "$Method $rel" }
 }
 
-# ---------------------------------------------------------------------------
-# Parse HAR
-# ---------------------------------------------------------------------------
+if (-not (Test-Path $HarFile)) { Write-Error "HAR file not found: $HarFile"; exit 1 }
+if (-not $OutputJmx) { $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, '.jmx') }
 
-$har     = Get-Content $HarFile -Raw | ConvertFrom-Json
-$entries = $har.log.entries
-
-if ($UrlFilter) {
-    $entries = @($entries | Where-Object { $_.request.url -like "*$UrlFilter*" })
+$har  = Get-Content $HarFile -Raw | ConvertFrom-Json
+$entries = if ($UrlFilter) {
+    @($har.log.entries | Where-Object { $_.request.url -like "*$UrlFilter*" })
 } else {
-    $entries = @($entries)
+    @($har.log.entries)
 }
 
 if ($entries.Count -eq 0) {
-    Write-Error "No requests matched filter '$UrlFilter'. Use -UrlFilter '' to include all."
+    Write-Error "No requests matched '$UrlFilter'."
     exit 1
 }
 
-Write-Host "$($entries.Count) request(s) matched. Generating JMX..."
-
-# ---------------------------------------------------------------------------
-# Extract base host from first entry
-# ---------------------------------------------------------------------------
-
-$baseUri  = [System.Uri]$entries[0].request.url
-$baseHost = $baseUri.Host
-
-# ---------------------------------------------------------------------------
-# Build sampler blocks
-# ---------------------------------------------------------------------------
-
-$sb         = [System.Text.StringBuilder]::new()
-$nameCounts = @{}
+$baseHost    = ([System.Uri]$entries[0].request.url).Host
+$sb          = [System.Text.StringBuilder]::new()
+$nameCounts  = @{}
+$samplerCount = 0
 
 foreach ($entry in $entries) {
     $req    = $entry.request
     $uri    = [System.Uri]$req.url
     $method = $req.method.ToUpper()
 
-    # Friendly label: METHOD - /path  (deduplicated with counter)
-    $rawLabel = "$method - $($uri.AbsolutePath)"
-    if ($nameCounts.ContainsKey($rawLabel)) {
-        $nameCounts[$rawLabel]++
-        $label = "$rawLabel ($($nameCounts[$rawLabel]))"
-    } else {
-        $nameCounts[$rawLabel] = 1
-        $label = $rawLabel
+    $requests = @()
+    if ($method -eq 'POST' -and $uri.AbsolutePath.EndsWith('/$batch') -and $req.postData -and $req.postData.text) {
+        $apiBase  = $uri.AbsolutePath.Replace('/$batch', '')
+        $requests = @(Get-BatchSubRequests -Body $req.postData.text -MimeType $req.postData.mimeType -ApiBase $apiBase)
+        if ($requests.Count -eq 0) {
+            Write-Warning "Could not parse batch body for $($uri.AbsolutePath) - adding as raw POST."
+        }
     }
-    $xmlLabel = ConvertTo-XmlText $label
-    $xmlPath  = ConvertTo-XmlText $uri.PathAndQuery
 
-    # Request body for POST / PATCH / PUT
-    $postBodyRaw = 'false'
-    $bodyArgsXml = '            <collectionProp name="Arguments.arguments"/>'
+    if ($requests.Count -eq 0) {
+        $rawPath = $req.url.Substring($req.url.IndexOf($baseHost) + $baseHost.Length)
+        $ph      = $req.headers | Where-Object { $_.name -ieq 'Prefer' } | Select-Object -First 1
+        $requests = @([PSCustomObject]@{
+            Method  = $method
+            Path    = $rawPath
+            Headers = @{
+                Prefer         = if ($ph) { $ph.value } else { $null }
+                'Content-Type' = if ($req.postData) { $req.postData.mimeType } else { $null }
+            }
+            Body    = if ($req.postData) { $req.postData.text } else { '' }
+        })
+    }
 
-    if ($method -in @('POST', 'PATCH', 'PUT') -and $req.postData -and $req.postData.text) {
-        $postBodyRaw = 'true'
-        $xmlBody     = ConvertTo-XmlText $req.postData.text
-        $bodyArgsXml = @"
+    foreach ($r in $requests) {
+        $rawLabel = Get-SamplerLabel -Method $r.Method -Path $r.Path
+        if ($nameCounts.ContainsKey($rawLabel)) {
+            $nameCounts[$rawLabel]++
+            $label = "$rawLabel ($($nameCounts[$rawLabel]))"
+        } else {
+            $nameCounts[$rawLabel] = 1
+            $label = $rawLabel
+        }
+
+        $xmlLabel  = ConvertTo-XmlText $label
+        $xmlPath   = ConvertTo-XmlText $r.Path
+        $preferVal = if ($r.Headers['Prefer']) { $r.Headers['Prefer'] } else { 'odata.maxpagesize=2000,odata.include-annotations=*' }
+        $xmlPrefer = ConvertTo-XmlText $preferVal
+
+        $postBodyRaw = 'false'
+        $bodyArgsXml = '            <collectionProp name="Arguments.arguments"/>'
+        if ($r.Method -in @('POST', 'PATCH', 'PUT') -and $r.Body) {
+            $postBodyRaw = 'true'
+            $xmlBody     = ConvertTo-XmlText $r.Body
+            $bodyArgsXml = @"
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
@@ -133,28 +145,26 @@ foreach ($entry in $entries) {
               </elementProp>
             </collectionProp>
 "@
-    }
+        }
 
-    # Per-sampler Content-Type header (mutations only)
-    $ctHashTree = '        <hashTree/>'
-    if ($method -in @('POST', 'PATCH', 'PUT') -and $req.postData -and $req.postData.mimeType) {
-        $xmlCt = ConvertTo-XmlText $req.postData.mimeType
-        $ctHashTree = @"
-        <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Content-Type" enabled="true">
-            <collectionProp name="HeaderManager.headers">
+        $perSamplerHeaders = @"
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Prefer</stringProp>
+                <stringProp name="Header.value">$xmlPrefer</stringProp>
+              </elementProp>
+"@
+        if ($r.Method -in @('POST', 'PATCH', 'PUT') -and $r.Headers['Content-Type']) {
+            $xmlCt = ConvertTo-XmlText $r.Headers['Content-Type']
+            $perSamplerHeaders += @"
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Content-Type</stringProp>
                 <stringProp name="Header.value">$xmlCt</stringProp>
               </elementProp>
-            </collectionProp>
-          </HeaderManager>
-          <hashTree/>
-        </hashTree>
 "@
-    }
+        }
 
-    $null = $sb.Append(@"
+        $rMethod = $r.Method
+        $null = $sb.Append(@"
 
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="$xmlLabel" enabled="true">
           <boolProp name="HTTPSampler.postBodyRaw">$postBodyRaw</boolProp>
@@ -162,18 +172,23 @@ foreach ($entry in $entries) {
 $bodyArgsXml
           </elementProp>
           <stringProp name="HTTPSampler.path">$xmlPath</stringProp>
-          <stringProp name="HTTPSampler.method">$method</stringProp>
+          <stringProp name="HTTPSampler.method">$rMethod</stringProp>
           <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
           <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
           <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
         </HTTPSamplerProxy>
-$ctHashTree
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Per-Request Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+$perSamplerHeaders
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
 "@)
+        $samplerCount++
+    }
 }
-
-# ---------------------------------------------------------------------------
-# Full JMX
-# ---------------------------------------------------------------------------
 
 $harName     = ConvertTo-XmlText (Split-Path $HarFile -Leaf)
 $samplersXml = $sb.ToString()
@@ -191,8 +206,7 @@ $jmx = @"
       </elementProp>
     </TestPlan>
     <hashTree>
-
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Virtual Users" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
           <boolProp name="LoopController.continue_forever">false</boolProp>
@@ -206,7 +220,6 @@ $jmx = @"
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
       </ThreadGroup>
       <hashTree>
-
         <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
             <collectionProp name="Arguments.arguments"/>
@@ -220,7 +233,6 @@ $jmx = @"
           <stringProp name="HTTPSampler.response_timeout">30000</stringProp>
         </ConfigTestElement>
         <hashTree/>
-
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Headers" enabled="true">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header">
@@ -238,10 +250,6 @@ $jmx = @"
             <elementProp name="" elementType="Header">
               <stringProp name="Header.name">OData-Version</stringProp>
               <stringProp name="Header.value">4.0</stringProp>
-            </elementProp>
-            <elementProp name="" elementType="Header">
-              <stringProp name="Header.name">Prefer</stringProp>
-              <stringProp name="Header.value">odata.maxpagesize=2000,odata.include-annotations=*</stringProp>
             </elementProp>
           </collectionProp>
         </HeaderManager>
@@ -284,7 +292,6 @@ $samplersXml
           <stringProp name="filename"></stringProp>
         </ResultCollector>
         <hashTree/>
-
       </hashTree>
     </hashTree>
   </hashTree>
@@ -292,4 +299,4 @@ $samplersXml
 "@
 
 $jmx | Set-Content -Path $OutputJmx -Encoding UTF8
-Write-Host "Done -> $OutputJmx ($($entries.Count) samplers)"
+Write-Host "$OutputJmx ($samplerCount samplers)"
