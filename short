@@ -1,71 +1,295 @@
-variables:
-  ACCELQ_API_KEY: ""
-  ACCELQ_USER: ""
-  ACCEL_DOMAIN: "navigate.accelq.io"
-  ACCEL_TENANT: "437"
-  ACCEL_PROJECT: "YOUR_PROJECT_CODE" # Replace with your Alphanumeric Project Code
-  JIRA_DOMAIN: "jira.yourcompany.com"
-  JIRA_PAT: ""
-  ACCELQ_RUN_ID: ""
+<#
+.SYNOPSIS
+    Converts a browser .har file into a JMeter .jmx test plan.
 
-stages:
-  - sync_results
+.DESCRIPTION
+    Reads captured HTTP requests from a HAR file exported from browser DevTools
+    and generates a JMeter test plan with one HTTP sampler per request.
+    Pass the output .jmx to Run-JMeter-Tests.ps1.
 
-sync_to_xray:
-  stage: sync_results
-  before_script:
-    - |
-      if ! command -v jq &> /dev/null; then
-        curl -L -s -o ./jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-        chmod +x ./jq
-      fi
-  script:
-    - "JQ_EXEC=$(command -v jq || echo './jq')"
-    
-    # 1. Fetch ACCELQ Run Data using the /awb/ and /v1/ext-access/ path
-    - |
-      RUN_DATA=$(curl -s -k -X GET "https://$ACCEL_DOMAIN/awb/api/$ACCEL_TENANT/$ACCEL_PROJECT/v1/ext-access/runs/$ACCELQ_RUN_ID" \
-        -H "api_key: $ACCELQ_API_KEY" \
-        -H "user_id: $ACCELQ_USER" \
-        -H "Content-Type: application/json")
-    
-    # 2. Extract Run Name (Mapping from the 'purpose' field or 'runName' depending on response)
-    - "RUN_NAME=$(echo \"$RUN_DATA\" | $JQ_EXEC -r '.purpose // .runName')"
-    - "if [[ \"$RUN_NAME\" =~ [Mm]obile ]]; then TARGET='Mobile'; else TARGET='Browser'; fi"
-    - "echo \"Targeting Jira tickets containing: $TARGET (Run: $RUN_NAME)\""
+.PARAMETER HarFile
+    Path to the .har file.
 
-    # 3. Loop through Scenarios
-    - |
-      # Note: The article says results are in the 'data' array for list views, 
-      # but for a specific Run ID it may return the object directly or as 'data'.
-      # This logic handles both.
-      SCENARIOS=$(echo "$RUN_DATA" | $JQ_EXEC -c 'if .data then .data[0].testCases else .testCases end | .[]')
-      
-      echo "$SCENARIOS" | while read -r scenario; do
-        SCENARIO_NAME=$(echo "$scenario" | $JQ_EXEC -r '.scenarioName // .scnName')
-        STATUS=$(echo "$scenario" | $JQ_EXEC -r '.testStatus')
-        XRAY_STATUS="FAIL"; [ "$STATUS" == "PASS" ] && XRAY_STATUS="PASS"
-        
-        ALL_KEYS=$(echo "$scenario" | $JQ_EXEC -r '.jiraIssues[]')
-        EXECUTION_KEY=""
-        TEST_KEYS_JSON=""
-        
-        for KEY in $ALL_KEYS; do
-          JIRA_DATA=$(curl -s -k -H "Authorization: Bearer $JIRA_PAT" -X GET "https://$JIRA_DOMAIN/rest/api/2/issue/$KEY?fields=issuetype,summary")
-          TYPE=$(echo "$JIRA_DATA" | $JQ_EXEC -r '.fields.issuetype.name')
-          SUMMARY=$(echo "$JIRA_DATA" | $JQ_EXEC -r '.fields.summary')
-          
-          if [[ "$TYPE" == "Test Execution" && "$SUMMARY" =~ $TARGET ]]; then 
-            EXECUTION_KEY=$KEY
-          elif [[ "$TYPE" == "Test" ]]; then 
-            TEST_KEYS_JSON="${TEST_KEYS_JSON}{\"testKey\":\"$KEY\",\"status\":\"$XRAY_STATUS\"},"
-          fi
-        done
-        
-        if [[ -n "$EXECUTION_KEY" && -n "$TEST_KEYS_JSON" ]]; then
-          TEST_KEYS_JSON=$(echo "$TEST_KEYS_JSON" | sed 's/,$//')
-          PAYLOAD="{\"testExecutionKey\":\"$EXECUTION_KEY\",\"tests\":[$TEST_KEYS_JSON]}"
-          curl -s -k -H "Authorization: Bearer $JIRA_PAT" -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "https://$JIRA_DOMAIN/rest/xray/2.0/api/import/execution"
-          echo "Updated $EXECUTION_KEY for $SCENARIO_NAME"
-        fi
-      done
+.PARAMETER OutputJmx
+    Output .jmx path. Defaults to the same name as HarFile with .jmx extension.
+
+.PARAMETER UrlFilter
+    Only include requests whose URL contains this string.
+    Default: '/api/data/' (Dataverse API calls only).
+    Set to '' to include every request in the HAR.
+
+.PARAMETER Threads
+    Default virtual user count written into the JMX (overridable at run time via -Jthread_count).
+
+.PARAMETER RampUp
+    Default ramp-up seconds written into the JMX (overridable at run time via -Jramp_up).
+
+.PARAMETER Loops
+    Default loop count written into the JMX (overridable at run time via -Jloop_count).
+
+.EXAMPLE
+    .\Convert-HarToJmx.ps1 -HarFile login.har
+    .\Convert-HarToJmx.ps1 -HarFile login.har -Threads 20 -RampUp 60
+    .\Convert-HarToJmx.ps1 -HarFile full-session.har -UrlFilter '' -OutputJmx full-session.jmx
+#>
+param(
+    [Parameter(Mandatory)]
+    [string]$HarFile,
+
+    [string]$OutputJmx = '',
+
+    [string]$UrlFilter = '/api/data/',
+
+    [int]$Threads = 10,
+    [int]$RampUp  = 30,
+    [int]$Loops   = 1
+)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+function ConvertTo-XmlText([string]$s) {
+    [System.Security.SecurityElement]::Escape($s)
+}
+
+# ---------------------------------------------------------------------------
+# Validate
+# ---------------------------------------------------------------------------
+
+if (-not (Test-Path $HarFile)) {
+    Write-Error "HAR file not found: $HarFile"
+    exit 1
+}
+
+if (-not $OutputJmx) {
+    $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, '.jmx')
+}
+
+# ---------------------------------------------------------------------------
+# Parse HAR
+# ---------------------------------------------------------------------------
+
+$har     = Get-Content $HarFile -Raw | ConvertFrom-Json
+$entries = $har.log.entries
+
+if ($UrlFilter) {
+    $entries = @($entries | Where-Object { $_.request.url -like "*$UrlFilter*" })
+} else {
+    $entries = @($entries)
+}
+
+if ($entries.Count -eq 0) {
+    Write-Error "No requests matched filter '$UrlFilter'. Use -UrlFilter '' to include all."
+    exit 1
+}
+
+Write-Host "$($entries.Count) request(s) matched. Generating JMX..."
+
+# ---------------------------------------------------------------------------
+# Extract base host from first entry
+# ---------------------------------------------------------------------------
+
+$baseUri  = [System.Uri]$entries[0].request.url
+$baseHost = $baseUri.Host
+
+# ---------------------------------------------------------------------------
+# Build sampler blocks
+# ---------------------------------------------------------------------------
+
+$sb         = [System.Text.StringBuilder]::new()
+$nameCounts = @{}
+
+foreach ($entry in $entries) {
+    $req    = $entry.request
+    $uri    = [System.Uri]$req.url
+    $method = $req.method.ToUpper()
+
+    # Friendly label: METHOD - /path  (deduplicated with counter)
+    $rawLabel = "$method - $($uri.AbsolutePath)"
+    if ($nameCounts.ContainsKey($rawLabel)) {
+        $nameCounts[$rawLabel]++
+        $label = "$rawLabel ($($nameCounts[$rawLabel]))"
+    } else {
+        $nameCounts[$rawLabel] = 1
+        $label = $rawLabel
+    }
+    $xmlLabel = ConvertTo-XmlText $label
+    $xmlPath  = ConvertTo-XmlText $uri.PathAndQuery
+
+    # Request body for POST / PATCH / PUT
+    $postBodyRaw = 'false'
+    $bodyArgsXml = '            <collectionProp name="Arguments.arguments"/>'
+
+    if ($method -in @('POST', 'PATCH', 'PUT') -and $req.postData -and $req.postData.text) {
+        $postBodyRaw = 'true'
+        $xmlBody     = ConvertTo-XmlText $req.postData.text
+        $bodyArgsXml = @"
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">$xmlBody</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+"@
+    }
+
+    # Per-sampler Content-Type header (mutations only)
+    $ctHashTree = '        <hashTree/>'
+    if ($method -in @('POST', 'PATCH', 'PUT') -and $req.postData -and $req.postData.mimeType) {
+        $xmlCt = ConvertTo-XmlText $req.postData.mimeType
+        $ctHashTree = @"
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Content-Type" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">$xmlCt</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+"@
+    }
+
+    $null = $sb.Append(@"
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="$xmlLabel" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">$postBodyRaw</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+$bodyArgsXml
+          </elementProp>
+          <stringProp name="HTTPSampler.path">$xmlPath</stringProp>
+          <stringProp name="HTTPSampler.method">$method</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+        </HTTPSamplerProxy>
+$ctHashTree
+"@)
+}
+
+# ---------------------------------------------------------------------------
+# Full JMX
+# ---------------------------------------------------------------------------
+
+$harName     = ConvertTo-XmlText (Split-Path $HarFile -Leaf)
+$samplersXml = $sb.ToString()
+
+$jmx = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="$harName" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Virtual Users" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">`${__P(loop_count,$Loops)}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">`${__P(thread_count,$Threads)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">`${__P(ramp_up,$RampUp)}</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">`${__P(base_url,$baseHost)}</stringProp>
+          <stringProp name="HTTPSampler.port">443</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path"></stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">10000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">30000</stringProp>
+        </ConfigTestElement>
+        <hashTree/>
+
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Headers" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">`${__P(auth_token)}</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Accept</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">OData-MaxVersion</stringProp>
+              <stringProp name="Header.value">4.0</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">OData-Version</stringProp>
+              <stringProp name="Header.value">4.0</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Prefer</stringProp>
+              <stringProp name="Header.value">odata.maxpagesize=2000,odata.include-annotations=*</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+$samplersXml
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
+"@
+
+$jmx | Set-Content -Path $OutputJmx -Encoding UTF8
+Write-Host "Done -> $OutputJmx ($($entries.Count) samplers)"
