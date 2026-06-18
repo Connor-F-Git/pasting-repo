@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory)][string]$HarFile,
   [string]$OutputJmx = '',
-  [string]$UrlFilter = '$batch',
+  [string]$UrlFilter = 'batch',
   [string]$ApiBase = '/api/data/v9.0',
   [int]$Threads = 10,
   [int]$RampUp = 30,
@@ -102,8 +102,8 @@ foreach ($entry in $entries) {
   $method = $req.method.ToUpper()
 
   $requests = @()
-  if ($method -eq 'POST' -and $uri.AbsolutePath.EndsWith('/$batch') -and $req.postData -and $req.postData.text) {
-    $apiBase = $uri.AbsolutePath.Replace('/$batch', '')
+  if ($method -eq 'POST' -and ($uri.AbsolutePath -like '*/$batch' -or $uri.AbsolutePath -like '*/%24batch') -and $req.postData -and $req.postData.text) {
+    $apiBase = $uri.AbsolutePath -replace '/(\$batch|%24batch)$', ''
     if (-not $apiBase) { $apiBase = $ApiBase }
     $requests = @(Get-BatchSubRequests -Body $req.postData.text -MimeType $req.postData.mimeType -ApiBase $apiBase)
     if ($requests.Count -eq 0) {
