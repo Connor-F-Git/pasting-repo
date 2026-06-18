@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory)][string]$HarFile,
   [string]$OutputJmx = '',
-  [string]$UrlFilter = '/api/data/',
+  [string]$UrlFilter = '$batch',
+  [string]$ApiBase = '/api/data/v9.0',
   [int]$Threads = 10,
   [int]$RampUp = 30,
   [int]$Loops = 1
@@ -85,7 +86,8 @@ else {
 }
 
 if ($entries.Count -eq 0) {
-  Write-Error "No requests matched '$UrlFilter'."
+  Write-Error "No requests matched '$UrlFilter'. Sample URLs in HAR:"
+  $har.log.entries | Select-Object -First 10 | ForEach-Object { Write-Host "  $($_.request.method) $($_.request.url)" }
   exit 1
 }
 
@@ -102,6 +104,7 @@ foreach ($entry in $entries) {
   $requests = @()
   if ($method -eq 'POST' -and $uri.AbsolutePath.EndsWith('/$batch') -and $req.postData -and $req.postData.text) {
     $apiBase = $uri.AbsolutePath.Replace('/$batch', '')
+    if (-not $apiBase) { $apiBase = $ApiBase }
     $requests = @(Get-BatchSubRequests -Body $req.postData.text -MimeType $req.postData.mimeType -ApiBase $apiBase)
     if ($requests.Count -eq 0) {
       Write-Warning "Could not parse batch body for $($uri.AbsolutePath) - adding as raw POST."
