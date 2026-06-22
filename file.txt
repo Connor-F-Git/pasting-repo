@@ -4,7 +4,7 @@ param(
   [string]$UrlFilter = 'batch',
   [string]$ApiBase = '/api/data/v9.0',
   [int]$Threads = 10,
-  [int]$RampUp = 30,
+  [int]$RampUp = -1,
   [int]$Loops = 1
 )
 
@@ -74,6 +74,8 @@ function Get-SamplerLabel([string]$Method, [string]$Path) {
   else { "$Method $rel" }
 }
 
+if ($RampUp -lt 0) { $RampUp = $Threads }
+
 if (-not (Test-Path $HarFile)) { Write-Error "HAR file not found: $HarFile"; exit 1 }
 if (-not $OutputJmx) { $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, '.jmx') }
 
@@ -87,7 +89,8 @@ Write-Host "$($har.log.entries.Count) total entries in HAR."
 
 $entries = if ($UrlFilter) {
   @($har.log.entries | Where-Object { $_.request.url -like "*$UrlFilter*" })
-} else {
+}
+else {
   @($har.log.entries)
 }
 
