@@ -78,16 +78,22 @@ if (-not (Test-Path $HarFile)) { Write-Error "HAR file not found: $HarFile"; exi
 if (-not $OutputJmx) { $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, '.jmx') }
 
 $har = Get-Content $HarFile -Raw | ConvertFrom-Json
+if (-not $har.log -or -not $har.log.entries) {
+  Write-Error "HAR file has no log.entries - is it a valid HAR?"
+  exit 1
+}
+
+Write-Host "$($har.log.entries.Count) total entries in HAR."
+
 $entries = if ($UrlFilter) {
   @($har.log.entries | Where-Object { $_.request.url -like "*$UrlFilter*" })
-}
-else {
+} else {
   @($har.log.entries)
 }
 
-if ($entries.Count -eq 0) {
-  Write-Error "No requests matched '$UrlFilter'. Sample URLs in HAR:"
-  $har.log.entries | Select-Object -First 10 | ForEach-Object { Write-Host "  $($_.request.method) $($_.request.url)" }
+if ($entries.Count -eq 0 -and $UrlFilter) {
+  Write-Warning "No entries matched '$UrlFilter'. Showing all URLs:"
+  $har.log.entries | ForEach-Object { Write-Host "  $($_.request.method) $($_.request.url)" }
   exit 1
 }
 
