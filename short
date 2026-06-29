@@ -79,6 +79,9 @@ if ($RampUp -lt 0) { $RampUp = $Threads }
 if (-not (Test-Path $HarFile)) { Write-Error "HAR file not found: $HarFile"; exit 1 }
 if (-not $OutputJmx) { $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, '.jmx') }
 
+# Build the auth token property reference (without backtick escaping in output)
+$authTokenRef = '$' + '{__P(auth_token)}'
+
 $har = Get-Content $HarFile -Raw | ConvertFrom-Json
 if (-not $har.log -or -not $har.log.entries) {
   Write-Error "HAR file has no log.entries - is it a valid HAR?"
@@ -262,7 +265,7 @@ $jmx = @"
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header">
               <stringProp name="Header.name">Authorization</stringProp>
-              <stringProp name="Header.value">`${__P(auth_token)}</stringProp>
+              <stringProp name="Header.value">$authTokenRef</stringProp>
             </elementProp>
             <elementProp name="" elementType="Header">
               <stringProp name="Header.name">Accept</stringProp>
