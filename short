@@ -11,7 +11,7 @@ param(
     [Parameter(Mandatory)]
     [string]$EntityPath,
 
-    [string]$QueryString = '$select=cr9da_firstname,cr9da_lastname&$orderby=createdon desc&$top=5000&$count=true'
+    [string]$QueryString = '$select=cr9da_firstname,cr9da_lastname&$orderby=createdon desc&$top=1000&$count=true'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,17 +59,37 @@ while ($nextUrl) {
         $lastResponse[$prop.Name] = $prop.Value
     }
 
+    $pageRows = 0
     if ($lastResponse.ContainsKey('value')) {
-        $totalRows += @($lastResponse['value']).Count
+        $pageRows = @($lastResponse['value']).Count
+        $totalRows += $pageRows
     }
 
     $nextLink = $null
-    if ($lastResponse.ContainsKey('@odata.nextLink')) {
-        $nextLink = $lastResponse['@odata.nextLink']
+    foreach ($name in '@odata.nextLink', '@Microsoft.Dynamics.CRM.nextpage') {
+        if ($lastResponse.ContainsKey($name)) {
+            $nextLink = [string]$lastResponse[$name]
+            break
+        }
     }
+
+    $reportedCount = $null
+    if ($lastResponse.ContainsKey('@odata.count')) {
+        $reportedCount = [int]$lastResponse['@odata.count']
+    }
+    elseif ($lastResponse.ContainsKey('@Microsoft.Dynamics.CRM.totalrecordcount')) {
+        $reportedCount = [int]$lastResponse['@Microsoft.Dynamics.CRM.totalrecordcount']
+    }
+
+    Write-Host ('Page ' + $page + ' returned ' + $pageRows + ' rows.')
 
     if ($nextLink) {
         $nextUrl = $nextLink
+    }
+    elseif ($null -ne $reportedCount -and $reportedCount -gt $totalRows) {
+        Write-Host ('Server reported total count ' + $reportedCount + '; using that value.')
+        $totalRows = $reportedCount
+        $nextUrl = $null
     }
     else {
         $nextUrl = $null
