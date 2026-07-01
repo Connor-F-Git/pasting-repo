@@ -48,12 +48,13 @@ $nextUrl = $entityUrl + '?' + $QueryString
 $totalRows = 0
 $page = 1
 $lastResponse = $null
-$headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/json'; Prefer = 'odata.maxpagesize=1000' }
+$headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/json;odata.metadata=full'; Prefer = 'odata.maxpagesize=1000,odata.include-annotations="Microsoft.Dynamics.CRM.totalrecordcount"' }
 
 $directCount = $null
 try {
     $countUrl = $entityUrl + '/$count'
     $countText = Invoke-WebRequest -Method Get -Uri $countUrl -Headers $headers | Select-Object -ExpandProperty Content
+    Write-Host ('Raw count response: ' + $countText)
     $cleanCountText = $countText -replace '[^0-9]', ''
     if ([string]::IsNullOrWhiteSpace($cleanCountText)) {
         throw 'Count endpoint returned no numeric value.'
@@ -65,6 +66,7 @@ catch {
     Write-Host ('Direct count request failed: ' + $_.Exception.Message)
 }
 
+Write-Host ('Query URL: ' + $nextUrl)
 while ($nextUrl) {
     Write-Host ('Fetching page ' + $page + ': ' + $nextUrl)
     $responseText = Invoke-WebRequest -Method Get -Uri $nextUrl -Headers $headers | Select-Object -ExpandProperty Content
