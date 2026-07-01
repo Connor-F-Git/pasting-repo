@@ -43,11 +43,23 @@ while ($null -eq $accessToken) {
 }
 
 $baseUrl = $EnvironmentUrl.TrimEnd('/')
-$nextUrl = $baseUrl + '/api/data/v9.0/' + $EntityPath + '?' + $QueryString
+$entityUrl = $baseUrl + '/api/data/v9.0/' + $EntityPath
+$nextUrl = $entityUrl + '?' + $QueryString
 $totalRows = 0
 $page = 1
 $lastResponse = $null
-$headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/json' }
+$headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/json'; Prefer = 'odata.maxpagesize=1000' }
+
+$directCount = $null
+try {
+    $countUrl = $entityUrl + '/$count'
+    $countText = Invoke-WebRequest -Method Get -Uri $countUrl -Headers $headers | Select-Object -ExpandProperty Content
+    $directCount = [int]$countText.Trim()
+    Write-Host ('Direct count from Dataverse: ' + $directCount)
+}
+catch {
+    Write-Host ('Direct count request failed: ' + $_.Exception.Message)
+}
 
 while ($nextUrl) {
     Write-Host ('Fetching page ' + $page + ': ' + $nextUrl)
@@ -91,11 +103,20 @@ while ($nextUrl) {
         $totalRows = $reportedCount
         $nextUrl = $null
     }
+    elseif ($null -ne $directCount -and $directCount -gt $totalRows) {
+        Write-Host ('Using direct Dataverse count ' + $directCount + ' as the total.')
+        $totalRows = $directCount
+        $nextUrl = $null
+    }
     else {
         $nextUrl = $null
     }
 
     $page++
+}
+
+if ($null -ne $directCount) {
+    $totalRows = $directCount
 }
 
 Write-Host ('Total rows fetched: ' + $totalRows)
