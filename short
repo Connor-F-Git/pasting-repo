@@ -54,7 +54,11 @@ $directCount = $null
 try {
     $countUrl = $entityUrl + '/$count'
     $countText = Invoke-WebRequest -Method Get -Uri $countUrl -Headers $headers | Select-Object -ExpandProperty Content
-    $directCount = [int]$countText.Trim()
+    $cleanCountText = $countText -replace '[^0-9]', ''
+    if ([string]::IsNullOrWhiteSpace($cleanCountText)) {
+        throw 'Count endpoint returned no numeric value.'
+    }
+    $directCount = [int]$cleanCountText
     Write-Host ('Direct count from Dataverse: ' + $directCount)
 }
 catch {
