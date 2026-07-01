@@ -1,1 +1,1 @@
-https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/cr9da_fsn_screeningses?$select=cr9da_firstname,cr9da_lastname&$orderby=createdon%20desc&$top=1
+https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/cr9da_fsn_screeningses?$select=cr9da_firstname,cr9da_lastname&$orderby=createdon%20desc&$top=1&$count=true
