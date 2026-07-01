@@ -1,3 +1,5 @@
+# .\run_query.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" -QueryUrl "https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/cr9da_fsn_screeningses?$select=cr9da_firstname,cr9da_lastname&$orderby=createdon%20desc&$top=1"
+
 param(
     [Parameter(Mandatory)]
     [string]$EnvironmentUrl,
