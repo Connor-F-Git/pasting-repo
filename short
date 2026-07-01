@@ -49,6 +49,7 @@ $totalRows = 0
 $page = 1
 $lastResponse = $null
 $headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/json;odata.metadata=full'; Prefer = 'odata.maxpagesize=1000,odata.include-annotations="Microsoft.Dynamics.CRM.totalrecordcount"' }
+$dataverseMaxRows = 5000
 
 $directCount = $null
 try {
@@ -61,6 +62,9 @@ try {
     }
     $directCount = [int]$cleanCountText
     Write-Host ('Direct count from Dataverse: ' + $directCount)
+    if ($directCount -ge $dataverseMaxRows) {
+        Write-Host ('Dataverse returned the platform maximum of ' + $dataverseMaxRows + ' rows for this endpoint.')
+    }
 }
 catch {
     Write-Host ('Direct count request failed: ' + $_.Exception.Message)
@@ -104,6 +108,10 @@ while ($nextUrl) {
     if ($nextLink) {
         $nextUrl = $nextLink
     }
+    elseif ($totalRows -ge $dataverseMaxRows) {
+        Write-Host ('No additional page was returned, so the observed total is likely capped at ' + $dataverseMaxRows + '.')
+        $nextUrl = $null
+    }
     elseif ($null -ne $reportedCount -and $reportedCount -gt $totalRows) {
         Write-Host ('Server reported total count ' + $reportedCount + '; using that value.')
         $totalRows = $reportedCount
@@ -126,6 +134,9 @@ if ($null -ne $directCount) {
 }
 
 Write-Host ('Total rows fetched: ' + $totalRows)
+if ($totalRows -ge $dataverseMaxRows) {
+    Write-Host ('This result is being reported as the Dataverse maximum of ' + $dataverseMaxRows + ' rows for this query.')
+}
 if ($lastResponse) {
     $odataCount = $null
     if ($lastResponse.ContainsKey('@odata.count')) {
