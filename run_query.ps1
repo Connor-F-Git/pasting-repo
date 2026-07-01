@@ -1,4 +1,4 @@
-# .\run_query.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" -QueryUrl "https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/cr9da_fsn_screeningses?$select=cr9da_firstname,cr9da_lastname&$orderby=createdon%20desc&$top=1"
+# .\run_query.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" -QueryUrl ""
 
 param(
     [Parameter(Mandatory)]
@@ -10,8 +10,14 @@ param(
     [Parameter(Mandatory)]
     [string]$ClientId,
 
-    [Parameter(Mandatory)]
-    [string]$QueryUrl
+    [Parameter(Mandatory, ParameterSetName = 'FullUrl')]
+    [string]$QueryUrl,
+
+    [Parameter(Mandatory, ParameterSetName = 'EntityPath')]
+    [string]$EntityPath,
+
+    [Parameter(ParameterSetName = 'EntityPath')]
+    [string]$QueryString
 )
 
 $scope = $EnvironmentUrl.TrimEnd('/') + '/.default'
@@ -54,12 +60,23 @@ while ($null -eq $accessToken) {
     }
 }
 
-Write-Host "Calling: $QueryUrl"
+if ($PSCmdlet.ParameterSetName -eq 'EntityPath') {
+    if ([string]::IsNullOrWhiteSpace($QueryString)) {
+        $QueryUrl = "$EnvironmentUrl/api/data/v9.0/$EntityPath"
+    }
+    else {
+        $QueryUrl = "$EnvironmentUrl/api/data/v9.0/$EntityPath?$QueryString"
+    }
+}
+
+$resolvedUrl = [System.Uri]::EscapeUriString($QueryUrl)
+
+Write-Host "Calling: $resolvedUrl"
 Write-Host ''
 
 $response = Invoke-RestMethod `
     -Method GET `
-    -Uri $QueryUrl `
+    -Uri $resolvedUrl `
     -Headers @{ Authorization = "Bearer $accessToken"; Accept = 'application/json' }
 
 $response | ConvertTo-Json -Depth 20
