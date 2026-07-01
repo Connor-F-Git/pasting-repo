@@ -1,86 +1,34 @@
-Request URL
-https://tb.events.data.microsoft.com/OneCollector/1.0/?cors=true&content-type=application/x-json-stream&w=2
-Request Method
-POST
-Status Code
-200 OK
-Remote Address
-20.140.137.183:443
-Referrer Policy
-strict-origin
-access-control-allow-credentials
-true
-access-control-allow-headers
-time-delta-millis
-access-control-allow-methods
-POST
-access-control-allow-origin
-https://apps.gov.powerapps.us
-access-control-expose-headers
-time-delta-millis
-content-length
-26
-content-type
-application/json
-date
-Wed, 01 Jul 2026 11:37:43 GMT
-server
-Microsoft-HTTPAPI/2.0
-strict-transport-security
-max-age=31536000
-time-delta-millis
-42
-:authority
-tb.events.data.microsoft.com
-:method
-POST
-:path
-/OneCollector/1.0/?cors=true&content-type=application/x-json-stream&w=2
-:scheme
-https
-accept
-*/*
-accept-encoding
-gzip, deflate, br, zstd
-accept-language
-en-US,en;q=0.9
-apikey
-0d7685a948a140789ac92933d3dc2d87-2dd0c1ce-8f10-41f0-a70a-2f9e51a851c8-6823
-cache-control
-no-cache, no-store
-client-id
-NO_AUTH
-client-version
-1DS-Web-JS-4.3.9
-content-length
-618130
-content-type
-application/x-json-stream
-cookie
-MC1=GUID=276cc0a72ba645cbabf2994440d3f362&HASH=276c&LV=202603&V=4&LU=1772554638482
-origin
-https://apps.gov.powerapps.us
-priority
-u=1, i
-referer
-https://apps.gov.powerapps.us/
-sec-ch-ua
-"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"
-sec-ch-ua-mobile
-?0
-sec-ch-ua-platform
-"Windows"
-sec-fetch-dest
-empty
-sec-fetch-mode
-cors
-sec-fetch-site
-cross-site
-sec-fetch-storage-access
-active
-time-delta-to-apply-millis
-52
-upload-time
-1782905863355
-user-agent
-Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+e.prototype.fetchWebResourceforLanguage = function(e, t) {
+            return __awaiter(this, void 0, void 0, (function() {
+                var r, o, i, s, c, u;
+                return __generator(this, (function(l) {
+                    switch (l.label) {
+                    case 0:
+                        return [4, this._getInstanceUrl(t)];
+                    case 1:
+                        return r = l.sent(),
+                        o = t,
+                        t.endsWith(".resx") || (o = t + "." + e + ".resx"),
+                        i = r + "/api/data/v9.0/webresourceset?" + "$filter=(name%20eq%20'".concat(t, "'%20or%20name%20eq%20'").concat(o, "')%20and%20languagecode%20eq%20").concat(e, "%20&$select=displayname,contentjson,name"),
+                        s = Object(n.HashTableUtility_create)(),
+                        c = {
+                            method: a.Method.GET,
+                            url: i,
+                            headers: s
+                        },
+                        [4, this._authProvider.authenticator.authenticateRequestAsync(c)];
+                    case 2:
+                        return l.sent(),
+                        Object(a.appendCustomHeadersOptions)(c, {
+                            addCustomHeaders: !0
+                        }),
+                        u = this._appInstance.appHttpClient,
+                        [4, Object(a.sendHttpJsonResponseAsync)(u, c, "getRsxAsync")];
+                    case 3:
+                        return [2, l.sent()]
+                    }
+                }
+                ))
+            }
+            ))
+        }
