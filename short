@@ -52,7 +52,12 @@ $headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/js
 while ($nextUrl) {
     Write-Host ('Fetching page ' + $page + ': ' + $nextUrl)
     $responseText = Invoke-WebRequest -Method Get -Uri $nextUrl -Headers $headers | Select-Object -ExpandProperty Content
-    $lastResponse = $responseText | ConvertFrom-Json -AsHashtable
+    $jsonObject = $responseText | ConvertFrom-Json
+
+    $lastResponse = @{}
+    foreach ($prop in $jsonObject.PSObject.Properties) {
+        $lastResponse[$prop.Name] = $prop.Value
+    }
 
     if ($lastResponse.ContainsKey('value')) {
         $totalRows += @($lastResponse['value']).Count
