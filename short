@@ -1,153 +1,136 @@
 param(
-    [Parameter(Mandatory)]
-    [string]$EnvironmentUrl,
+    [Parameter(Mandatory = $true)]
+    [string[]]$HarFiles,
 
-    [Parameter(Mandatory)]
-    [string]$TenantId,
+    [string]$OutputHar = '',
 
-    [Parameter(Mandatory)]
-    [string]$ClientId,
-
-    [Parameter(Mandatory)]
-    [string]$EntityPath,
-
-    [string]$QueryString = '$select=cr9da_firstname,cr9da_lastname&$orderby=createdon desc&$top=1000&$count=true'
+    [switch]$PassThru
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$scope = $EnvironmentUrl.TrimEnd('/') + '/.default'
+function New-DefaultCreator {
+    [pscustomobject]@{
+        name    = 'PowerShell HAR Merger'
+        version = '1.0'
+    }
+}
 
-$deviceResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" -Body @{ client_id = $ClientId; scope = $scope } -ContentType 'application/x-www-form-urlencoded'
-Write-Host $deviceResponse.message
-Write-Host ''
+if (-not $HarFiles -or $HarFiles.Count -eq 0) {
+    throw 'At least one HAR file is required.'
+}
 
-$tokenBody = @{ grant_type = 'urn:ietf:params:oauth:grant-type:device_code'; client_id = $ClientId; device_code = $deviceResponse.device_code }
+$resolvedFiles = @()
+foreach ($harFile in $HarFiles) {
+    if (-not (Test-Path -LiteralPath $harFile)) {
+        throw "HAR file not found: $harFile"
+    }
 
-$accessToken = $null
-$interval = [int]$deviceResponse.interval
-while ($null -eq $accessToken) {
-    Start-Sleep -Seconds $interval
+    $resolvedFiles += (Resolve-Path -LiteralPath $harFile).Path
+}
+
+if (-not $OutputHar) {
+    $OutputHar = Join-Path (Get-Location) 'combined.har'
+}
+
+$outputPath = [System.IO.Path]::GetFullPath($OutputHar)
+$outputDir = Split-Path -Parent $outputPath
+if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) {
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+}
+
+$mergedEntries = [System.Collections.Generic.List[object]]::new()
+$mergedPages = [System.Collections.Generic.List[object]]::new()
+$comments = [System.Collections.Generic.List[string]]::new()
+$firstLog = $null
+$version = '1.2'
+$creator = $null
+$browser = $null
+
+function Get-LogPropertyValue {
+    param(
+        [Parameter(Mandatory = $true)]$Object,
+        [Parameter(Mandatory = $true)][string]$PropertyName
+    )
+
+    if ($null -eq $Object) { return $null }
+    if ($Object.PSObject.Properties.Name -contains $PropertyName) {
+        return $Object.$PropertyName
+    }
+
+    return $null
+}
+
+foreach ($file in $resolvedFiles) {
     try {
-        $tokenResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Body $tokenBody -ContentType 'application/x-www-form-urlencoded' -ErrorAction Stop
-        $accessToken = $tokenResponse.access_token
+        $har = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
     }
     catch {
-        $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
-        if ($err -eq 'authorization_pending') { continue }
-        elseif ($err -eq 'slow_down') { $interval += 5; continue }
-        elseif ($err -eq 'authorization_declined') { throw 'Login was declined.' }
-        elseif ($err -eq 'expired_token') { throw 'Device code expired.' }
-        else { throw $_ }
-    }
-}
-
-$baseUrl = $EnvironmentUrl.TrimEnd('/')
-$entityUrl = $baseUrl + '/api/data/v9.0/' + $EntityPath
-$nextUrl = $entityUrl + '?' + $QueryString
-$totalRows = 0
-$page = 1
-$lastResponse = $null
-$headers = @{ Authorization = 'Bearer ' + $accessToken; Accept = 'application/json;odata.metadata=full'; Prefer = 'odata.maxpagesize=1000,odata.include-annotations="Microsoft.Dynamics.CRM.totalrecordcount"' }
-$dataverseMaxRows = 5000
-
-$directCount = $null
-try {
-    $countUrl = $entityUrl + '/$count'
-    $countText = Invoke-WebRequest -Method Get -Uri $countUrl -Headers $headers | Select-Object -ExpandProperty Content
-    Write-Host ('Raw count response: ' + $countText)
-    $cleanCountText = $countText -replace '[^0-9]', ''
-    if ([string]::IsNullOrWhiteSpace($cleanCountText)) {
-        throw 'Count endpoint returned no numeric value.'
-    }
-    $directCount = [int]$cleanCountText
-    Write-Host ('Direct count from Dataverse: ' + $directCount)
-    if ($directCount -ge $dataverseMaxRows) {
-        Write-Host ('Dataverse returned the platform maximum of ' + $dataverseMaxRows + ' rows for this endpoint.')
-    }
-}
-catch {
-    Write-Host ('Direct count request failed: ' + $_.Exception.Message)
-}
-
-Write-Host ('Query URL: ' + $nextUrl)
-while ($nextUrl) {
-    Write-Host ('Fetching page ' + $page + ': ' + $nextUrl)
-    $responseText = Invoke-WebRequest -Method Get -Uri $nextUrl -Headers $headers | Select-Object -ExpandProperty Content
-    $jsonObject = $responseText | ConvertFrom-Json
-
-    $lastResponse = @{}
-    foreach ($prop in $jsonObject.PSObject.Properties) {
-        $lastResponse[$prop.Name] = $prop.Value
+        throw "Unable to parse HAR file '$file': $($_.Exception.Message)"
     }
 
-    $pageRows = 0
-    if ($lastResponse.ContainsKey('value')) {
-        $pageRows = @($lastResponse['value']).Count
-        $totalRows += $pageRows
+    $log = $har.log
+    if (-not $log) {
+        throw "HAR file does not contain a log object: $file"
     }
 
-    $nextLink = $null
-    foreach ($name in '@odata.nextLink', '@Microsoft.Dynamics.CRM.nextpage') {
-        if ($lastResponse.ContainsKey($name)) {
-            $nextLink = [string]$lastResponse[$name]
-            break
+    if (-not $firstLog) {
+        $firstLog = $log
+        $version = [string](Get-LogPropertyValue -Object $firstLog -PropertyName 'version')
+        if ($null -eq $version -or [string]::IsNullOrWhiteSpace([string]$version)) {
+            $version = '1.2'
+        }
+        $creator = Get-LogPropertyValue -Object $firstLog -PropertyName 'creator'
+        $browser = Get-LogPropertyValue -Object $firstLog -PropertyName 'browser'
+    }
+
+    $entries = Get-LogPropertyValue -Object $log -PropertyName 'entries'
+    if ($entries) {
+        foreach ($entry in @($entries)) {
+            $null = $mergedEntries.Add($entry)
         }
     }
 
-    $reportedCount = $null
-    if ($lastResponse.ContainsKey('@odata.count')) {
-        $reportedCount = [int]$lastResponse['@odata.count']
-    }
-    elseif ($lastResponse.ContainsKey('@Microsoft.Dynamics.CRM.totalrecordcount')) {
-        $reportedCount = [int]$lastResponse['@Microsoft.Dynamics.CRM.totalrecordcount']
-    }
-
-    Write-Host ('Page ' + $page + ' returned ' + $pageRows + ' rows.')
-
-    if ($nextLink) {
-        $nextUrl = $nextLink
-    }
-    elseif ($totalRows -ge $dataverseMaxRows) {
-        Write-Host ('No additional page was returned, so the observed total is likely capped at ' + $dataverseMaxRows + '.')
-        $nextUrl = $null
-    }
-    elseif ($null -ne $reportedCount -and $reportedCount -gt $totalRows) {
-        Write-Host ('Server reported total count ' + $reportedCount + '; using that value.')
-        $totalRows = $reportedCount
-        $nextUrl = $null
-    }
-    elseif ($null -ne $directCount -and $directCount -gt $totalRows) {
-        Write-Host ('Using direct Dataverse count ' + $directCount + ' as the total.')
-        $totalRows = $directCount
-        $nextUrl = $null
-    }
-    else {
-        $nextUrl = $null
+    $pages = Get-LogPropertyValue -Object $log -PropertyName 'pages'
+    if ($pages) {
+        foreach ($page in @($pages)) {
+            $null = $mergedPages.Add($page)
+        }
     }
 
-    $page++
+    $comment = Get-LogPropertyValue -Object $log -PropertyName 'comment'
+    if ($comment) {
+        $null = $comments.Add([string]$comment)
+    }
 }
 
-if ($null -ne $directCount) {
-    $totalRows = $directCount
+if (-not $creator) {
+    $creator = New-DefaultCreator
 }
 
-Write-Host ('Total rows fetched: ' + $totalRows)
-if ($totalRows -ge $dataverseMaxRows) {
-    Write-Host ('This result is being reported as the Dataverse maximum of ' + $dataverseMaxRows + ' rows for this query.')
+$commentText = if ($comments.Count -gt 0) {
+    "Combined from $($resolvedFiles.Count) HAR file(s). $($comments -join ' | ')"
 }
-if ($lastResponse) {
-    $odataCount = $null
-    if ($lastResponse.ContainsKey('@odata.count')) {
-        $odataCount = $lastResponse['@odata.count']
-    }
+else {
+    "Combined from $($resolvedFiles.Count) HAR file(s)."
+}
 
-    $crmTotalCount = $null
-    if ($lastResponse.ContainsKey('@Microsoft.Dynamics.CRM.totalrecordcount')) {
-        $crmTotalCount = $lastResponse['@Microsoft.Dynamics.CRM.totalrecordcount']
+$mergedHar = [pscustomobject]@{
+    log = [pscustomobject]@{
+        version = $version
+        creator = $creator
+        browser = $browser
+        pages   = @($mergedPages)
+        entries = @($mergedEntries)
+        comment = $commentText
     }
+}
 
-    Write-Host ('OData count: ' + $odataCount)
-    Write-Host ('CRM total record count: ' + $crmTotalCount)
+$mergedHar | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $outputPath -Encoding UTF8
+
+Write-Host "Created $outputPath with $($mergedEntries.Count) entries from $($resolvedFiles.Count) HAR file(s)."
+
+if ($PassThru) {
+    return $mergedHar
 }
