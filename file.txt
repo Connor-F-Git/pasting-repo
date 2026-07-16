@@ -1,131 +1,274 @@
-param(
-    [Parameter(Mandatory)]
-    [string]$EnvironmentUrl,
-
-    [Parameter(Mandatory)]
-    [string]$TenantId,
-
-    [Parameter(Mandatory)]
-    [string]$ClientId,
-
-    [Parameter(Mandatory)]
-    [string]$JMeterPath,
-
-    [Parameter(Mandatory)]
-    [string]$TestPlanPath,
-
-    [string]$ResultsDir = "$PSScriptRoot\results",
-    [int]$Threads = 10,
-    [int]$RampUp = 30,
-    [int]$Loops = 1,
-    [int]$MinHeapMB = 1024,
-    [int]$MaxHeapMB = 4096
-)
-
-# Checks before running script
-
-if (-not (Test-Path $JMeterPath)) {
-    Write-Error "JMeter not found at '$JMeterPath'. Pass -JMeterPath to your jmeter.bat location."
-    exit 1
-}
-
-if (-not (Test-Path $TestPlanPath)) {
-    Write-Error "Test plan not found at '$TestPlanPath'."
-    exit 1
-}
-
-if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]::Absolute))) {
-    Write-Error "EnvironmentUrl '$EnvironmentUrl' is not a valid URL."
-    exit 1
-}
-
-# Authentication
-
-$scope = $EnvironmentUrl.TrimEnd('/') + "/.default"
-
-# Request device code
-$deviceResponse = Invoke-RestMethod `
-    -Method POST `
-    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
-    -Body @{ client_id = $ClientId; scope = $scope } `
-    -ContentType "application/x-www-form-urlencoded"
-
-Write-Host $deviceResponse.message
-Write-Host ""
-
-# Keep contacting the server until login is done
-$tokenBody = @{
-    grant_type  = "urn:ietf:params:oauth:grant-type:device_code"
-    client_id   = $ClientId
-    device_code = $deviceResponse.device_code
-}
-
-$accessToken = $null
-$interval = [int]$deviceResponse.interval
-while ($null -eq $accessToken) {
-    Start-Sleep -Seconds $interval
-    try {
-        $tokenResponse = Invoke-RestMethod `
-            -Method POST `
-            -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-            -Body $tokenBody `
-            -ContentType "application/x-www-form-urlencoded" `
-            -ErrorAction Stop
-        $accessToken = $tokenResponse.access_token
-    }
-    catch {
-        $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
-        if ($err -eq "authorization_pending") { continue }
-        elseif ($err -eq "slow_down") { $interval += 5; continue }
-        elseif ($err -eq "authorization_declined") { Write-Error "Login was declined."; exit 1 }
-        elseif ($err -eq "expired_token") { Write-Error "Device code expired."; exit 1 }
-        else { Write-Error $_; exit 1 }
-    }
-}
-
-Write-Host "Authenticated successfully."
-Write-Host "Token: $accessToken"
-
-# Running JMeter Test Plan
-
-$hostname = ([System.Uri]$EnvironmentUrl).Host
-$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$runDir = Join-Path $ResultsDir $timestamp
-$jtlFile = Join-Path $runDir "results.jtl"
-$reportDir = Join-Path $runDir "report"
-
-New-Item -ItemType Directory -Path $runDir -Force | Out-Null
-
-# Configure JVM heap and GC options for large runs (can be overridden by environment)
-$heapString = "-Xms${MinHeapMB}m -Xmx${MaxHeapMB}m"
-$jvmArgs = "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$runDir\heapdump.hprof"
-if (-not $env:HEAP) { $env:HEAP = $heapString }
-if (-not $env:JVM_ARGS) { $env:JVM_ARGS = $jvmArgs }
-
-Write-Host "JMeter HEAP set to: $env:HEAP"
-Write-Host "JVM_ARGS set to: $env:JVM_ARGS"
-
-& $JMeterPath `
-    -n `
-    -t $TestPlanPath `
-    -l $jtlFile `
-    -e `
-    -o $reportDir `
-    "-Jauth_token=Bearer $accessToken" `
-    "-Jbase_url=$hostname" `
-    "-Jthread_count=$Threads" `
-    "-Jramp_up=$RampUp" `
-    "-Jloop_count=$Loops" `
-    "-Jjmeter.save.saveservice.output_format=csv" `
-    "-Jjmeter.save.saveservice.response_data=false" `
-    "-Jjmeter.save.saveservice.samplerData=false" `
-    "-Jjmeter.save.saveservice.response_headers=false" `
-    "-Jjmeter.save.saveservice.request_headers=false"
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Report saved to: $reportDir"
-    Start-Process (Join-Path $reportDir "index.html")
-}
-else {
-    Write-Error "JMeter exited with code $LASTEXITCODE. Check $runDir for details."
+{
+  "log": {
+    "version": "1.2",
+    "creator": {
+      "name": "WebInspector",
+      "version": "537.36"
+    },
+    "pages": [],
+    "entries": [
+      {
+        "_priority": "High",
+        "_resourceType": "xhr",
+        "cache": {},
+        "connection": "443",
+        "request": {
+          "method": "POST",
+          "url": "https://orgab3a5422.crm9.dynamics.com/api/data/v9.0/$batch",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": ":authority",
+              "value": "orgab3a5422.crm9.dynamics.com"
+            },
+            {
+              "name": ":method",
+              "value": "POST"
+            },
+            {
+              "name": ":path",
+              "value": "/api/data/v9.0/$batch"
+            },
+            {
+              "name": ":scheme",
+              "value": "https"
+            },
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "accept-encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "accept-language",
+              "value": "en-US"
+            },
+            {
+              "name": "cache-control",
+              "value": "no-cache, no-store"
+            },
+            {
+              "name": "client-session-id",
+              "value": "4730214d-0e38-444f-ab9b-be40a69330e6"
+            },
+            {
+              "name": "content-length",
+              "value": "618"
+            },
+            {
+              "name": "content-type",
+              "value": "multipart/mixed;boundary=batch_d519e9ba-3af4-4c62-add8-da4011d3dce1"
+            },
+            {
+              "name": "origin",
+              "value": "https://apps.gov.powerapps.us"
+            },
+            {
+              "name": "pragma",
+              "value": "no-cache"
+            },
+            {
+              "name": "prefer",
+              "value": "odata.continue-on-error"
+            },
+            {
+              "name": "priority",
+              "value": "u=1, i"
+            },
+            {
+              "name": "referer",
+              "value": "https://apps.gov.powerapps.us/"
+            },
+            {
+              "name": "request-id",
+              "value": "f8080499-1298-4afd-96ea-2a00d53c1690"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "sec-fetch-dest",
+              "value": "empty"
+            },
+            {
+              "name": "sec-fetch-mode",
+              "value": "cors"
+            },
+            {
+              "name": "sec-fetch-site",
+              "value": "cross-site"
+            },
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "x-ms-app-id",
+              "value": "f39339dd-0638-4b73-98c8-8f7003019854"
+            },
+            {
+              "name": "x-ms-client-request-id",
+              "value": "f8080499-1298-4afd-96ea-2a00d53c1690"
+            },
+            {
+              "name": "x-ms-client-session-id",
+              "value": "4730214d-0e38-444f-ab9b-be40a69330e6"
+            },
+            {
+              "name": "x-ms-user-agent",
+              "value": "PowerApps/3.26065.4 (Web Player; AppName=f39339dd-0638-4b73-98c8-8f7003019854)"
+            }
+          ],
+          "queryString": [],
+          "cookies": [],
+          "headersSize": -1,
+          "bodySize": 618,
+          "postData": {
+            "mimeType": "multipart/mixed;boundary=batch_d519e9ba-3af4-4c62-add8-da4011d3dce1",
+            "text": "--batch_d519e9ba-3af4-4c62-add8-da4011d3dce1\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\nPATCH cr9da_fsn_screeningses%28917b977f-4c81-f111-ab0e-001dd8095749%29 HTTP/1.1\r\nAccept: application/json\r\nContent-Type: application/json\r\nPrefer: return=representation,odata.include-annotations=*\r\n\r\n{\"cr9da_screeningstatus\":\"In Progress\",\"cr9da_spattestation\":\"Yes, I have confirmed that the submitted screening request matches the position screening requirements in Workday.\",\"cr9da_spattestationdate\":\"2026-07-16\",\"cr9da_spattestedby\":\"Connor Fedalen\"}\n--batch_d519e9ba-3af4-4c62-add8-da4011d3dce1--\r\n\u0000"
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "access-control-allow-credentials",
+              "value": "true"
+            },
+            {
+              "name": "access-control-allow-origin",
+              "value": "https://apps.gov.powerapps.us"
+            },
+            {
+              "name": "access-control-expose-headers",
+              "value": "Preference-Applied,OData-EntityId,Location,ETag,OData-Version,Content-Encoding,Transfer-Encoding,Content-Length,Retry-After,REQ_ID"
+            },
+            {
+              "name": "allow",
+              "value": "OPTIONS,GET,HEAD,POST"
+            },
+            {
+              "name": "authactivityid",
+              "value": "28c75a3a-6467-4f0a-85d8-560d5f4fce2a"
+            },
+            {
+              "name": "cache-control",
+              "value": "no-cache"
+            },
+            {
+              "name": "content-encoding",
+              "value": "br"
+            },
+            {
+              "name": "content-length",
+              "value": "1365"
+            },
+            {
+              "name": "content-type",
+              "value": "multipart/mixed; boundary=batchresponse_2187a713-bd2c-44a5-bb3c-ecb4ad53071a"
+            },
+            {
+              "name": "date",
+              "value": "Thu, 16 Jul 2026 19:31:38 GMT"
+            },
+            {
+              "name": "expires",
+              "value": "-1"
+            },
+            {
+              "name": "odata-version",
+              "value": "4.0"
+            },
+            {
+              "name": "public",
+              "value": "OPTIONS,GET,HEAD,POST"
+            },
+            {
+              "name": "req_id",
+              "value": "21227077-c973-4604-8d77-cf2d484647b6"
+            },
+            {
+              "name": "strict-transport-security",
+              "value": "max-age=31536000; includeSubDomains"
+            },
+            {
+              "name": "vary",
+              "value": "Accept-Encoding"
+            },
+            {
+              "name": "x-content-type-options",
+              "value": "nosniff"
+            },
+            {
+              "name": "x-ms-dop-hint",
+              "value": "48"
+            },
+            {
+              "name": "x-ms-ratelimit-burst-remaining-xrm-requests",
+              "value": "7961"
+            },
+            {
+              "name": "x-ms-ratelimit-time-remaining-xrm-requests",
+              "value": "1,196.65"
+            },
+            {
+              "name": "x-ms-service-request-id",
+              "value": "21227077-c973-4604-8d77-cf2d484647b6"
+            },
+            {
+              "name": "x-source",
+              "value": "9824602419916680168107292461020611510212701831682416597137945064232124218250102105"
+            },
+            {
+              "name": "x-source",
+              "value": "1156683719526572161631215719590241198991712331621422541942411772437922022711290197"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 4471,
+            "mimeType": "multipart/mixed"
+          },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": -1,
+          "_transferSize": 2116,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "62.11.76.194",
+        "startedDateTime": "2026-07-16T19:31:39.230Z",
+        "time": 241.41099999906146,
+        "timings": {
+          "blocked": 82.14599999838649,
+          "dns": -1,
+          "ssl": -1,
+          "connect": -1,
+          "send": 0.31200000000000006,
+          "wait": 158.62000000071993,
+          "receive": 0.3329999999550637,
+          "_blocked_queueing": 80.20499999838648,
+          "_blocked_proxy": 1.6260000000000001,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_connectionId": "25541"
+      }
+    ]
+  }
 }
