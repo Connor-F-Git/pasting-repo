@@ -1,3 +1,4 @@
+Querying records from: https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/$select=cr9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'%20and%20cr9da_screeningstatus%20eq%20'In%20Progress'
 C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests-Increment.ps1 : Dataverse query failed with HTTP 400 (BadRequest). URL: https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/$selec
 t=cr9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'%20and%20cr9da_screeningstatus%20e
 q%20'In%20Progress'. Details: Server returned an HTML error page instead of Dataverse JSON. This usually means the URL is not a Dataverse Web API endpoint.
