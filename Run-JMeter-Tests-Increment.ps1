@@ -20,6 +20,12 @@ param(
     [string]$QueryRequestLine,
     [string]$QueryEntityPath = 'cr9da_fsn_screeningses',
     [string]$QueryString,
+    # Different .jmx files can target different Dataverse environments/API versions
+    # (e.g. testplan.jmx uses /api/data/v9.2/..., updateSummaryReport_STAGE.jmx uses
+    # /api/data/v9.0/... against a different hardcoded host). By default this is
+    # auto-detected from -TestPlanPath's HTTPSampler.path values. Only pass this
+    # explicitly to override auto-detection.
+    [string]$ApiVersion = '9.0',
     [string]$FirstName,
     [string]$LastName,
     [string]$AdjudicationStatus,
@@ -129,6 +135,36 @@ function ConvertTo-ODataEscapedString {
     return $Value.Replace("'", "''")
 }
 
+function Get-JMeterTestPlanEnvironmentInfo {
+    param([Parameter(Mandatory)][string]$TestPlanPath)
+
+    $xmlText = Get-Content -Path $TestPlanPath -Raw
+
+    $domains = [System.Collections.Generic.List[string]]::new()
+    foreach ($m in [regex]::Matches($xmlText, '<stringProp name="HTTPSampler\.domain">([^<]*)</stringProp>')) {
+        $val = $m.Groups[1].Value.Trim()
+        if (-not [string]::IsNullOrWhiteSpace($val) -and $val -notmatch '\$\{') {
+            $domains.Add($val)
+        }
+    }
+
+    $versions = [System.Collections.Generic.List[string]]::new()
+    foreach ($m in [regex]::Matches($xmlText, '/api/data/v([0-9]+\.[0-9]+)/')) {
+        $versions.Add($m.Groups[1].Value)
+    }
+
+    $detectedVersion = $null
+    if ($versions.Count -gt 0) {
+        $detectedVersion = ($versions | Group-Object | Sort-Object Count -Descending | Select-Object -First 1).Name
+    }
+
+    return [pscustomobject]@{
+        Domains            = @($domains | Select-Object -Unique)
+        ApiVersions        = @($versions | Select-Object -Unique)
+        DetectedApiVersion = $detectedVersion
+    }
+}
+
 function New-FilterClause {
     param(
         [Parameter(Mandatory)][string]$Field,
@@ -189,7 +225,8 @@ function Get-FriendlyHttpError {
 function Convert-RequestLineToDataverseUrl {
     param(
         [Parameter(Mandatory)][string]$EnvironmentUrl,
-        [Parameter(Mandatory)][string]$RequestLine
+        [Parameter(Mandatory)][string]$RequestLine,
+        [string]$ApiVersion = '9.2'
     )
 
     $trimmed = $RequestLine.Trim()
@@ -216,7 +253,7 @@ function Convert-RequestLineToDataverseUrl {
         return "$envBase$pathAndQuery"
     }
 
-    return "$envBase/api/data/v9.0/$pathAndQuery"
+    return "$envBase/api/data/v$ApiVersion/$pathAndQuery"
 }
 
 function Get-RecordIdsFromQuery {
@@ -237,7 +274,8 @@ function Get-RecordIdsFromQuery {
         [string]$AdditionalFilter,
         [bool]$UseContains,
         [int]$Top,
-        [int]$MaxRows
+        [int]$MaxRows,
+        [string]$ApiVersion = '9.2'
     )
 
     if (-not [string]::IsNullOrWhiteSpace($QueryUrl)) {
@@ -250,7 +288,7 @@ function Get-RecordIdsFromQuery {
         $resolvedUrl = $QueryUrl
     }
     elseif (-not [string]::IsNullOrWhiteSpace($QueryRequestLine)) {
-        $resolvedUrl = Convert-RequestLineToDataverseUrl -EnvironmentUrl $EnvironmentUrl -RequestLine $QueryRequestLine
+        $resolvedUrl = Convert-RequestLineToDataverseUrl -EnvironmentUrl $EnvironmentUrl -RequestLine $QueryRequestLine -ApiVersion $ApiVersion
         if ($resolvedUrl -notmatch '/api/data/v[0-9.]+/') {
             throw "-QueryRequestLine must resolve to a Dataverse Web API path (/api/data/vX.X/...). Resolved: '$resolvedUrl'"
         }
@@ -302,7 +340,7 @@ function Get-RecordIdsFromQuery {
             throw 'No query parameters were built. Pass a filter, -QueryString, or -QueryUrl.'
         }
 
-        $resolvedUrl = $EnvironmentUrl.TrimEnd('/') + '/api/data/v9.0/' + $entityPath + '?' + $queryPart
+        $resolvedUrl = $EnvironmentUrl.TrimEnd('/') + '/api/data/v' + $ApiVersion + '/' + $entityPath + '?' + $queryPart
     }
 
     Write-Host "Querying records from: $resolvedUrl"
@@ -373,6 +411,32 @@ if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]:
 
 if ($EnvironmentUrl -notmatch 'https://[^/]+\.crm[0-9]*\.dynamics\.com/?$') {
     Write-Warning "EnvironmentUrl does not look like a standard Dataverse org URL (for example: https://org.crm9.dynamics.com). Current value: '$EnvironmentUrl'"
+}
+
+# Detect the Dataverse API version (and any hardcoded host) actually used by the
+# .jmx being run, since different test plans target different environments/versions.
+$planInfo = Get-JMeterTestPlanEnvironmentInfo -TestPlanPath $TestPlanPath
+
+if ($planInfo.ApiVersions.Count -gt 1) {
+    Write-Warning "Test plan '$TestPlanPath' references multiple Dataverse API versions: $($planInfo.ApiVersions -join ', '). Using the most common one: $($planInfo.DetectedApiVersion)."
+}
+
+if (-not $PSBoundParameters.ContainsKey('ApiVersion') -and $planInfo.DetectedApiVersion) {
+    if ($ApiVersion -ne $planInfo.DetectedApiVersion) {
+        Write-Host "Auto-detected Dataverse API version 'v$($planInfo.DetectedApiVersion)' from '$TestPlanPath'."
+    }
+    $ApiVersion = $planInfo.DetectedApiVersion
+}
+elseif (-not $planInfo.DetectedApiVersion) {
+    Write-Warning "Could not detect an API version from '$TestPlanPath'. Falling back to -ApiVersion '$ApiVersion'."
+}
+
+if ($planInfo.Domains.Count -gt 0) {
+    $envHost = ([System.Uri]$EnvironmentUrl).Host
+    $mismatchedDomains = @($planInfo.Domains | Where-Object { $_ -ne $envHost })
+    if ($mismatchedDomains.Count -gt 0) {
+        Write-Warning "Test plan '$TestPlanPath' hardcodes HTTPSampler.domain '$($mismatchedDomains -join ', ')', which does NOT match -EnvironmentUrl host '$envHost'. JMeter will send its actual HTTP requests to the domain baked into the .jmx (NOT to -EnvironmentUrl), while this script queries Dataverse for record GUIDs using -EnvironmentUrl. Point -EnvironmentUrl at '$($mismatchedDomains[0])' (or update the .jmx) so the GUIDs you query match the environment JMeter actually hits."
+    }
 }
 
 # Build per-run output locations
@@ -453,7 +517,8 @@ try {
             -AdditionalFilter $AdditionalFilter `
             -UseContains $UseContains.IsPresent `
             -Top $Top `
-            -MaxRows $MaxRows
+            -MaxRows $MaxRows `
+            -ApiVersion $ApiVersion
     }
 }
 catch {
