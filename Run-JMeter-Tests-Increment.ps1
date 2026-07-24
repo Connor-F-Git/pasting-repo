@@ -219,45 +219,6 @@ function Convert-RequestLineToDataverseUrl {
     return "$envBase/api/data/v9.0/$pathAndQuery"
 }
 
-function Normalize-DataverseQueryUrl {
-    param(
-        [Parameter(Mandatory)][string]$EnvironmentUrl,
-        [Parameter(Mandatory)][string]$Url,
-        [string]$FallbackEntityPath = 'cr9da_fsn_screeningses'
-    )
-
-    $normalized = $Url.Trim()
-    $base = $EnvironmentUrl.TrimEnd('/')
-
-    # Repair malformed shape:
-    # https://org.crm9.dynamics.com/api/data/v9.0/$select=...
-    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/)(\$.*)$') {
-        return "$($Matches[1])$FallbackEntityPath?$($Matches[2])"
-    }
-
-    # If someone built .../api/data/v9.0/<entity>&$select=... (missing ?)
-    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/[^?]+)&(\$.*)$') {
-        return "$($Matches[1])?$($Matches[2])"
-    }
-
-    # If query options are present but no ? exists, inject it after entity path.
-    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/[^?]+)(\$.*)$') {
-        return "$($Matches[1])?$($Matches[2])"
-    }
-
-    # If somehow URL is just /api/data/vX.X/?$select... with missing entity.
-    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/)(\?.*)$') {
-        return "$($Matches[1])$FallbackEntityPath$($Matches[2])"
-    }
-
-    # Relative salvage fallback.
-    if ($normalized -match '^/api/data/v[0-9.]+/\$') {
-        return "$base$normalized$FallbackEntityPath"
-    }
-
-    return $normalized
-}
-
 function Get-RecordIdsFromQuery {
     param(
         [Parameter(Mandatory)][string]$EnvironmentUrl,
@@ -295,23 +256,11 @@ function Get-RecordIdsFromQuery {
         }
     }
     else {
-        if ([string]::IsNullOrWhiteSpace($QueryEntityPath)) {
-            $QueryEntityPath = 'cr9da_fsn_screeningses'
+        $entityPath = $QueryEntityPath
+        if ([string]::IsNullOrWhiteSpace($entityPath) -or $entityPath.TrimStart().StartsWith('$')) {
+            $entityPath = 'cr9da_fsn_screeningses'
         }
-
-        if (-not [string]::IsNullOrWhiteSpace($QueryEntityPath) -and $QueryEntityPath.TrimStart().StartsWith('$')) {
-            if ([string]::IsNullOrWhiteSpace($QueryString)) {
-                $QueryString = $QueryEntityPath
-            }
-            else {
-                $QueryString = "$QueryEntityPath&$QueryString"
-            }
-            $QueryEntityPath = 'cr9da_fsn_screeningses'
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($QueryString) -and $QueryString.StartsWith('?')) {
-            $QueryString = $QueryString.TrimStart('?')
-        }
+        $entityPath = $entityPath.Trim().Trim('/')
 
         if ($Top -le 0) {
             throw '-Top must be greater than 0.'
@@ -320,7 +269,11 @@ function Get-RecordIdsFromQuery {
             throw '-MaxRows must be greater than 0.'
         }
 
-        if ([string]::IsNullOrWhiteSpace($QueryString)) {
+        $queryPart = $QueryString
+        if (-not [string]::IsNullOrWhiteSpace($queryPart)) {
+            $queryPart = $queryPart.TrimStart('?')
+        }
+        else {
             $filterParts = [System.Collections.Generic.List[string]]::new()
 
             if ($FirstName) { $filterParts.Add((New-FilterClause -Field 'cr9da_firstname' -Value $FirstName -ContainsMode $UseContains)) }
@@ -338,25 +291,18 @@ function Get-RecordIdsFromQuery {
 
             $selectColumns = @('cr9da_fsn_screeningsid', 'createdon')
             $parts = [System.Collections.Generic.List[string]]::new()
-            $parts.Add("`$select=$([System.Uri]::EscapeDataString(($selectColumns -join ',')))")
-            $parts.Add("`$orderby=$([System.Uri]::EscapeDataString('createdon desc'))")
-            $parts.Add("`$top=$Top")
-            $parts.Add("`$filter=$([System.Uri]::EscapeDataString(($filterParts -join ' and ')))")
-            $QueryString = $parts -join '&'
+            $parts.Add('$select=' + [System.Uri]::EscapeDataString(($selectColumns -join ',')))
+            $parts.Add('$orderby=' + [System.Uri]::EscapeDataString('createdon desc'))
+            $parts.Add('$top=' + $Top)
+            $parts.Add('$filter=' + [System.Uri]::EscapeDataString(($filterParts -join ' and ')))
+            $queryPart = $parts -join '&'
         }
 
-        if ([string]::IsNullOrWhiteSpace($QueryString)) {
-            $resolvedUrl = "$EnvironmentUrl/api/data/v9.0/$QueryEntityPath"
+        if ([string]::IsNullOrWhiteSpace($queryPart)) {
+            throw 'No query parameters were built. Pass a filter, -QueryString, or -QueryUrl.'
         }
-        else {
-            $resolvedUrl = "$EnvironmentUrl/api/data/v9.0/$QueryEntityPath?$QueryString"
-        }
-    }
 
-    $resolvedUrl = Normalize-DataverseQueryUrl -EnvironmentUrl $EnvironmentUrl -Url $resolvedUrl -FallbackEntityPath $QueryEntityPath
-
-    if ($resolvedUrl -notmatch '/api/data/v[0-9.]+/[^?]+\?') {
-        throw "Unable to build a valid Dataverse query URL. Built: '$resolvedUrl'"
+        $resolvedUrl = $EnvironmentUrl.TrimEnd('/') + '/api/data/v9.0/' + $entityPath + '?' + $queryPart
     }
 
     Write-Host "Querying records from: $resolvedUrl"
