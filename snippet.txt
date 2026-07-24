@@ -1,1 +1,8 @@
-.\Run-JMeter-Tests-Increment.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "..." -ClientId "..." -JMeterPath "..." -TestPlanPath ".\updateSummaryReport_STAGE.jmx" -QueryString "`$select=cr9da_fsn_screeningsid,cr9da_firstname,cr9da_lastname,cr9da_screeningstatus&`$top=5" -Top 5
+.\Run-JMeter-Tests-Increment.ps1 `
+  -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `
+  -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" `
+  -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" `
+  -JMeterPath "C:\DevTools\ApacheJMETER-5.5\bin\jmeter.bat" `
+  -TestPlanPath ".\updateSummaryReport_STAGE.jmx" `
+  -QueryString "`$select=cr9da_fsn_screeningsid,cr9da_firstname,cr9da_lastname,cr9da_screeningstatus,cr9da_adjudicationphase&`$top=10" `
+  -Top 10
