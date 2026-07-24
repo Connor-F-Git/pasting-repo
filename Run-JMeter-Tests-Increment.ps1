@@ -35,6 +35,9 @@ param(
     [string]$BusinessLine,
     [string]$AdditionalFilter,
     [switch]$UseContains,
+    # Defaults to the effective thread count detected from -TestPlanPath (or -Threads
+    # if the .jmx doesn't hardcode a literal ThreadGroup.num_threads), capped at 2000.
+    # Pass this explicitly to override. Always clamped to a maximum of 2000.
     [int]$Top = 2000,
     [int]$MaxRows = 20000,
 
@@ -158,10 +161,25 @@ function Get-JMeterTestPlanEnvironmentInfo {
         $detectedVersion = ($versions | Group-Object | Sort-Object Count -Descending | Select-Object -First 1).Name
     }
 
+    $threadCounts = [System.Collections.Generic.List[int]]::new()
+    foreach ($m in [regex]::Matches($xmlText, '<stringProp name="ThreadGroup\.num_threads">([^<]*)</stringProp>')) {
+        $val = $m.Groups[1].Value.Trim()
+        if ($val -notmatch '\$\{' -and $val -match '^[0-9]+$') {
+            $threadCounts.Add([int]$val)
+        }
+    }
+
+    $detectedThreadCount = $null
+    if ($threadCounts.Count -gt 0) {
+        $detectedThreadCount = ($threadCounts | Group-Object | Sort-Object Count -Descending | Select-Object -First 1).Name -as [int]
+    }
+
     return [pscustomobject]@{
-        Domains            = @($domains | Select-Object -Unique)
-        ApiVersions        = @($versions | Select-Object -Unique)
-        DetectedApiVersion = $detectedVersion
+        Domains             = @($domains | Select-Object -Unique)
+        ApiVersions         = @($versions | Select-Object -Unique)
+        DetectedApiVersion  = $detectedVersion
+        ThreadCounts        = @($threadCounts | Select-Object -Unique)
+        DetectedThreadCount = $detectedThreadCount
     }
 }
 
@@ -438,6 +456,31 @@ if ($planInfo.Domains.Count -gt 0) {
         Write-Warning "Test plan '$TestPlanPath' hardcodes HTTPSampler.domain '$($mismatchedDomains -join ', ')', which does NOT match -EnvironmentUrl host '$envHost'. JMeter will send its actual HTTP requests to the domain baked into the .jmx (NOT to -EnvironmentUrl), while this script queries Dataverse for record GUIDs using -EnvironmentUrl. Point -EnvironmentUrl at '$($mismatchedDomains[0])' (or update the .jmx) so the GUIDs you query match the environment JMeter actually hits."
     }
 }
+
+# Determine the effective thread count actually used by this run: if the .jmx
+# hardcodes a literal ThreadGroup.num_threads (instead of referencing
+# ${__P(thread_count)}), -Threads has NO effect on JMeter and the .jmx value wins.
+if ($planInfo.ThreadCounts.Count -gt 1) {
+    Write-Warning "Test plan '$TestPlanPath' hardcodes multiple different ThreadGroup.num_threads values: $($planInfo.ThreadCounts -join ', '). -Threads only affects thread groups that reference `${__P(thread_count)}`."
+}
+
+$effectiveThreadCount = $Threads
+if ($planInfo.DetectedThreadCount) {
+    $effectiveThreadCount = $planInfo.DetectedThreadCount
+    if ($effectiveThreadCount -ne $Threads) {
+        Write-Warning "Test plan '$TestPlanPath' hardcodes ThreadGroup.num_threads=$($planInfo.DetectedThreadCount), which does NOT match -Threads $Threads. JMeter will actually run with $($planInfo.DetectedThreadCount) threads (the value baked into the .jmx). Update the .jmx to use `${__P(thread_count,...)}` (or pass -Threads $($planInfo.DetectedThreadCount)) to keep these consistent."
+    }
+}
+
+# Default -Top to the effective thread count, capped at 2000, unless explicitly passed.
+if (-not $PSBoundParameters.ContainsKey('Top')) {
+    $Top = $effectiveThreadCount
+}
+if ($Top -gt 2000) {
+    Write-Warning "-Top $Top exceeds the maximum of 2000; clamping to 2000."
+    $Top = 2000
+}
+Write-Host "Using -Top $Top for the Dataverse GUID query (effective thread count: $effectiveThreadCount)."
 
 # Build per-run output locations
 $hostname = ([System.Uri]$EnvironmentUrl).Host
