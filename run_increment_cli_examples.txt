@@ -1,0 +1,24 @@
+.\Run-JMeter-Tests-Increment.ps1 `
+  -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `
+  -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" `
+  -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" `
+  -JMeterPath "C:\apache-jmeter\bin\jmeter.bat" `
+  -TestPlanPath ".\testplan.jmx" `
+  -FirstName "Connor" `
+  -LastName "Fedalen" `
+  -AdjudicationStatus "Pending" `
+  -UseContains `
+  -Threads 10 `
+  -RampUp 30 `
+  -Loops 2
+
+
+
+.\Run-JMeter-Tests-Increment.ps1 `
+  -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `
+  -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" `
+  -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" `
+  -JMeterPath "C:\apache-jmeter\bin\jmeter.bat" `
+  -TestPlanPath ".\testplan.jmx" `
+  -QueryEntityPath "cr9da_fsn_screeningses" `
+  -QueryString '$select=cr9da_fsn_screeningsid&$filter=contains(cr9da_lastname,''Fedalen'')&$top=500'
