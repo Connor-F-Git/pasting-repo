@@ -1,136 +1,69 @@
-param(
-    [Parameter(Mandatory = $true)]
-    [string[]]$HarFiles,
-
-    [string]$OutputHar = '',
-
-    [switch]$PassThru
-)
-
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-
-function New-DefaultCreator {
-    [pscustomobject]@{
-        name    = 'PowerShell HAR Merger'
-        version = '1.0'
-    }
-}
-
-if (-not $HarFiles -or $HarFiles.Count -eq 0) {
-    throw 'At least one HAR file is required.'
-}
-
-$resolvedFiles = @()
-foreach ($harFile in $HarFiles) {
-    if (-not (Test-Path -LiteralPath $harFile)) {
-        throw "HAR file not found: $harFile"
-    }
-
-    $resolvedFiles += (Resolve-Path -LiteralPath $harFile).Path
-}
-
-if (-not $OutputHar) {
-    $OutputHar = Join-Path (Get-Location) 'combined.har'
-}
-
-$outputPath = [System.IO.Path]::GetFullPath($OutputHar)
-$outputDir = Split-Path -Parent $outputPath
-if ($outputDir -and -not (Test-Path -LiteralPath $outputDir)) {
-    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
-}
-
-$mergedEntries = [System.Collections.Generic.List[object]]::new()
-$mergedPages = [System.Collections.Generic.List[object]]::new()
-$comments = [System.Collections.Generic.List[string]]::new()
-$firstLog = $null
-$version = '1.2'
-$creator = $null
-$browser = $null
-
-function Get-LogPropertyValue {
-    param(
-        [Parameter(Mandatory = $true)]$Object,
-        [Parameter(Mandatory = $true)][string]$PropertyName
-    )
-
-    if ($null -eq $Object) { return $null }
-    if ($Object.PSObject.Properties.Name -contains $PropertyName) {
-        return $Object.$PropertyName
-    }
-
-    return $null
-}
-
-foreach ($file in $resolvedFiles) {
-    try {
-        $har = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
-    }
-    catch {
-        throw "Unable to parse HAR file '$file': $($_.Exception.Message)"
-    }
-
-    $log = $har.log
-    if (-not $log) {
-        throw "HAR file does not contain a log object: $file"
-    }
-
-    if (-not $firstLog) {
-        $firstLog = $log
-        $version = [string](Get-LogPropertyValue -Object $firstLog -PropertyName 'version')
-        if ($null -eq $version -or [string]::IsNullOrWhiteSpace([string]$version)) {
-            $version = '1.2'
-        }
-        $creator = Get-LogPropertyValue -Object $firstLog -PropertyName 'creator'
-        $browser = Get-LogPropertyValue -Object $firstLog -PropertyName 'browser'
-    }
-
-    $entries = Get-LogPropertyValue -Object $log -PropertyName 'entries'
-    if ($entries) {
-        foreach ($entry in @($entries)) {
-            $null = $mergedEntries.Add($entry)
-        }
-    }
-
-    $pages = Get-LogPropertyValue -Object $log -PropertyName 'pages'
-    if ($pages) {
-        foreach ($page in @($pages)) {
-            $null = $mergedPages.Add($page)
-        }
-    }
-
-    $comment = Get-LogPropertyValue -Object $log -PropertyName 'comment'
-    if ($comment) {
-        $null = $comments.Add([string]$comment)
-    }
-}
-
-if (-not $creator) {
-    $creator = New-DefaultCreator
-}
-
-$commentText = if ($comments.Count -gt 0) {
-    "Combined from $($resolvedFiles.Count) HAR file(s). $($comments -join ' | ')"
-}
-else {
-    "Combined from $($resolvedFiles.Count) HAR file(s)."
-}
-
-$mergedHar = [pscustomobject]@{
-    log = [pscustomobject]@{
-        version = $version
-        creator = $creator
-        browser = $browser
-        pages   = @($mergedPages)
-        entries = @($mergedEntries)
-        comment = $commentText
-    }
-}
-
-$mergedHar | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $outputPath -Encoding UTF8
-
-Write-Host "Created $outputPath with $($mergedEntries.Count) entries from $($resolvedFiles.Count) HAR file(s)."
-
-if ($PassThru) {
-    return $mergedHar
-}
+C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests-Increment.ps1 : 
+    
+        Runtime Error
+        
+        
+         body {font-family:"Verdana";font-weight:normal;font-size: .7em;color:black;} 
+         p {font-family:"Verdana";font-weight:normal;color:black;margin-top: -5px}
+         b {font-family:"Verdana";font-weight:bold;color:black;margin-top: -5px}
+         H1 { font-family:"Verdana";font-weight:normal;font-size:18pt;color:red }
+         H2 { font-family:"Verdana";font-weight:normal;font-size:14pt;color:maroon }
+         pre {font-family:"Consolas","Lucida Console",Monospace;font-size:11pt;margin:0;padding:0.5em;line-height:14pt}
+         .marker {font-weight: bold; color: black;text-decoration: none;}
+         .version {color: gray;}
+         .error {margin-bottom: 10px;}
+         .expandable { text-decoration:underline; font-weight:bold; color:navy; cursor:pointer; }
+         @media screen and (max-width: 639px) {
+          pre { width: 440px; overflow: auto; white-space: pre-wrap; word-wrap: break-word; }
+         }
+         @media screen and (max-width: 479px) {
+          pre { width: 280px; }
+         }
+        
+    
+    
+            Server Error in '/' Application.
+             Runtime Error 
+            
+             Description: An application error occurred on the server. The current custom error settings for this application prevent the details of the application error from being viewed remotely 
+(for security reasons). It could, however, be viewed by browsers running on the local server machine.
+            
+            Details: To enable the details of this specific error message to be viewable on remote machines, please create a &lt;customErrors&gt; tag within a &quot;web.config&quot; configuration file 
+located in the root directory of the current web application. This &lt;customErrors&gt; tag should then have its &quot;mode&quot; attribute set to &quot;Off&quot;.
+            
+               
+                  
+                      
+&lt;!-- Web.Config Configuration File --&gt;
+&lt;configuration&gt;
+    &lt;system.web&gt;
+        &lt;customErrors mode=&quot;Off&quot;/&gt;
+    &lt;/system.web&gt;
+&lt;/configuration&gt;                      
+                  
+               
+            
+            
+            Notes: The current error page you are seeing can be replaced by a custom error page by modifying the &quot;defaultRedirect&quot; attribute of the application&#39;s &lt;customErrors&gt; 
+configuration tag to point to a custom error page URL.
+            
+               
+                  
+                      
+&lt;!-- Web.Config Configuration File --&gt;
+&lt;configuration&gt;
+    &lt;system.web&gt;
+        &lt;customErrors mode=&quot;RemoteOnly&quot; defaultRedirect=&quot;mycustompage.htm&quot;/&gt;
+    &lt;/system.web&gt;
+&lt;/configuration&gt;                      
+                  
+               
+            
+            
+            
+    
+At line:1 char:1
++ .\Run-JMeter-Tests-Increment.ps1 `  -EnvironmentUrl "https://p365feds ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Run-JMeter-Tests-Increment.ps1
