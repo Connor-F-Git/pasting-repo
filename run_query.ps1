@@ -1,4 +1,4 @@
-# .\run_query.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" -QueryUrl ""
+# .\run_query.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" -QueryUrl ""
 
 param(
     [Parameter(Mandatory)]
@@ -69,7 +69,7 @@ if ($PSCmdlet.ParameterSetName -eq 'EntityPath') {
     }
 }
 
-$resolvedUrl = [System.Uri]::EscapeUriString($QueryUrl)
+$resolvedUrl = $QueryUrl
 
 Write-Host "Calling: $resolvedUrl"
 Write-Host ''
