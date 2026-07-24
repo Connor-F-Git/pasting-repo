@@ -219,6 +219,45 @@ function Convert-RequestLineToDataverseUrl {
     return "$envBase/api/data/v9.0/$pathAndQuery"
 }
 
+function Normalize-DataverseQueryUrl {
+    param(
+        [Parameter(Mandatory)][string]$EnvironmentUrl,
+        [Parameter(Mandatory)][string]$Url,
+        [string]$FallbackEntityPath = 'cr9da_fsn_screeningses'
+    )
+
+    $normalized = $Url.Trim()
+    $base = $EnvironmentUrl.TrimEnd('/')
+
+    # Repair malformed shape:
+    # https://org.crm9.dynamics.com/api/data/v9.0/$select=...
+    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/)(\$.*)$') {
+        return "$($Matches[1])$FallbackEntityPath?$($Matches[2])"
+    }
+
+    # If someone built .../api/data/v9.0/<entity>&$select=... (missing ?)
+    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/[^?]+)&(\$.*)$') {
+        return "$($Matches[1])?$($Matches[2])"
+    }
+
+    # If query options are present but no ? exists, inject it after entity path.
+    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/[^?]+)(\$.*)$') {
+        return "$($Matches[1])?$($Matches[2])"
+    }
+
+    # If somehow URL is just /api/data/vX.X/?$select... with missing entity.
+    if ($normalized -match '^(https://[^/]+/api/data/v[0-9.]+/)(\?.*)$') {
+        return "$($Matches[1])$FallbackEntityPath$($Matches[2])"
+    }
+
+    # Relative salvage fallback.
+    if ($normalized -match '^/api/data/v[0-9.]+/\$') {
+        return "$base$normalized$FallbackEntityPath"
+    }
+
+    return $normalized
+}
+
 function Get-RecordIdsFromQuery {
     param(
         [Parameter(Mandatory)][string]$EnvironmentUrl,
@@ -312,6 +351,12 @@ function Get-RecordIdsFromQuery {
         else {
             $resolvedUrl = "$EnvironmentUrl/api/data/v9.0/$QueryEntityPath?$QueryString"
         }
+    }
+
+    $resolvedUrl = Normalize-DataverseQueryUrl -EnvironmentUrl $EnvironmentUrl -Url $resolvedUrl -FallbackEntityPath $QueryEntityPath
+
+    if ($resolvedUrl -notmatch '/api/data/v[0-9.]+/[^?]+\?') {
+        throw "Unable to build a valid Dataverse query URL. Built: '$resolvedUrl'"
     }
 
     Write-Host "Querying records from: $resolvedUrl"
