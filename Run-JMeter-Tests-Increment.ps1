@@ -17,6 +17,7 @@ param(
     [string]$RecordIdsPath,
 
     [string]$QueryUrl,
+    [string]$QueryRequestLine,
     [string]$QueryEntityPath = 'cr9da_fsn_screeningses',
     [string]$QueryString,
     [string]$FirstName,
@@ -185,11 +186,45 @@ function Get-FriendlyHttpError {
     return "Dataverse query failed. Details: $detail"
 }
 
+function Convert-RequestLineToDataverseUrl {
+    param(
+        [Parameter(Mandatory)][string]$EnvironmentUrl,
+        [Parameter(Mandatory)][string]$RequestLine
+    )
+
+    $trimmed = $RequestLine.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+        throw '-QueryRequestLine cannot be empty.'
+    }
+
+    $pathAndQuery = $trimmed
+    if ($trimmed -match '^GET\s+(.+?)\s+HTTP/\d(?:\.\d)?\s*$') {
+        $pathAndQuery = $Matches[1]
+    }
+
+    if ($pathAndQuery -match '^https?://') {
+        return $pathAndQuery
+    }
+
+    $envBase = $EnvironmentUrl.TrimEnd('/')
+
+    if ($pathAndQuery.StartsWith('/api/data/', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return "$envBase$pathAndQuery"
+    }
+
+    if ($pathAndQuery.StartsWith('/')) {
+        return "$envBase$pathAndQuery"
+    }
+
+    return "$envBase/api/data/v9.0/$pathAndQuery"
+}
+
 function Get-RecordIdsFromQuery {
     param(
         [Parameter(Mandatory)][string]$EnvironmentUrl,
         [Parameter(Mandatory)][string]$AccessToken,
         [string]$QueryUrl,
+        [string]$QueryRequestLine,
         [Parameter(Mandatory)][string]$QueryEntityPath,
         [string]$QueryString,
         [string]$FirstName,
@@ -213,6 +248,12 @@ function Get-RecordIdsFromQuery {
             throw "-QueryUrl must target the Dataverse Web API path (/api/data/vX.X/...). Received: '$QueryUrl'"
         }
         $resolvedUrl = $QueryUrl
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($QueryRequestLine)) {
+        $resolvedUrl = Convert-RequestLineToDataverseUrl -EnvironmentUrl $EnvironmentUrl -RequestLine $QueryRequestLine
+        if ($resolvedUrl -notmatch '/api/data/v[0-9.]+/') {
+            throw "-QueryRequestLine must resolve to a Dataverse Web API path (/api/data/vX.X/...). Resolved: '$resolvedUrl'"
+        }
     }
     else {
         if ($Top -le 0) {
@@ -390,6 +431,7 @@ try {
             -EnvironmentUrl $EnvironmentUrl `
             -AccessToken $accessToken `
             -QueryUrl $QueryUrl `
+            -QueryRequestLine $QueryRequestLine `
             -QueryEntityPath $QueryEntityPath `
             -QueryString $QueryString `
             -FirstName $FirstName `
