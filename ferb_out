@@ -1,7 +1,10 @@
-Querying records from: https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/$select=cr9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'%20and%20cr9da_screeningstatus%20eq%20'In%20Progress'
-C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests-Increment.ps1 : Dataverse query failed with HTTP 400 (BadRequest). URL: https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/$selec
-t=cr9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'%20and%20cr9da_screeningstatus%20e
-q%20'In%20Progress'. Details: Server returned an HTML error page instead of Dataverse JSON. This usually means the URL is not a Dataverse Web API endpoint.
+PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> .\Run-JMeter-Tests-Increment.ps1 `  -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `  -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" `  -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" `  -JMeterPath "C:\DevTools\ApacheJMETER-5.5\bin\jmeter.bat" `  -TestPlanPath ".\updateSummaryReport_STAGE.jmx" ` -FirstName "SummaryTreasury" -LastName "SummaryTreasury" -ScreeningStatus "In Progress" -Top 10 -Threads 10 -RampUp 10 -Loops 1
+To sign in, use a web browser to open the page https://login.microsoft.com/device and enter the code BT6R4T3FX to authenticate.
+
+Authenticated successfully.
+C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests-Increment.ps1 : Unable to build a valid Dataverse query URL. Built: 'https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/$select=c
+r9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'%20and%20cr9da_screeningstatus%20eq%2
+0'In%20Progress''
 At line:1 char:1
 + .\Run-JMeter-Tests-Increment.ps1 `  -EnvironmentUrl "https://p365feds ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
