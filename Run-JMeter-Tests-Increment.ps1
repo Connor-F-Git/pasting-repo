@@ -395,6 +395,16 @@ function Get-RecordIdsFromQuery {
         }
     }
 
+    if ($rows.Count -gt 0) {
+        Write-Host "Sample of returned rows (up to 5, raw JSON as received from Dataverse):"
+        $rows | Select-Object -First 5 | ForEach-Object {
+            Write-Host ($_ | ConvertTo-Json -Compress -Depth 5)
+        }
+    }
+    else {
+        Write-Host 'Query returned 0 rows (no records matched the filter/query as sent to Dataverse).'
+    }
+
     $ids = @(
         $rows |
         ForEach-Object { $_.cr9da_fsn_screeningsid } |
