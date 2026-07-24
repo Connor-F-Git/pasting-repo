@@ -143,6 +143,48 @@ function New-FilterClause {
     return "$Field eq '$escaped'"
 }
 
+function Get-FriendlyHttpError {
+    param(
+        [Parameter(Mandatory)]$ErrorRecord,
+        [string]$RequestUrl
+    )
+
+    $statusCode = $null
+    $statusText = $null
+    if ($ErrorRecord.Exception -and $ErrorRecord.Exception.Response) {
+        try {
+            $statusCode = [int]$ErrorRecord.Exception.Response.StatusCode
+            $statusText = [string]$ErrorRecord.Exception.Response.StatusCode
+        }
+        catch {
+            $statusCode = $null
+            $statusText = $null
+        }
+    }
+
+    $detail = $ErrorRecord.ErrorDetails.Message
+    if ([string]::IsNullOrWhiteSpace($detail)) {
+        $detail = $ErrorRecord.Exception.Message
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($detail) -and $detail -match '<html|<!doctype html|Server Error in ''/'' Application') {
+        $detail = 'Server returned an HTML error page instead of Dataverse JSON. This usually means the URL is not a Dataverse Web API endpoint.'
+    }
+
+    if ($RequestUrl) {
+        if ($statusCode) {
+            return "Dataverse query failed with HTTP $statusCode ($statusText). URL: $RequestUrl. Details: $detail"
+        }
+        return "Dataverse query failed. URL: $RequestUrl. Details: $detail"
+    }
+
+    if ($statusCode) {
+        return "Dataverse query failed with HTTP $statusCode ($statusText). Details: $detail"
+    }
+
+    return "Dataverse query failed. Details: $detail"
+}
+
 function Get-RecordIdsFromQuery {
     param(
         [Parameter(Mandatory)][string]$EnvironmentUrl,
@@ -164,6 +206,12 @@ function Get-RecordIdsFromQuery {
     )
 
     if (-not [string]::IsNullOrWhiteSpace($QueryUrl)) {
+        if (-not [System.Uri]::IsWellFormedUriString($QueryUrl, [System.UriKind]::Absolute)) {
+            throw "-QueryUrl is not a valid absolute URL: '$QueryUrl'"
+        }
+        if ($QueryUrl -notmatch '/api/data/v[0-9.]+/') {
+            throw "-QueryUrl must target the Dataverse Web API path (/api/data/vX.X/...). Received: '$QueryUrl'"
+        }
         $resolvedUrl = $QueryUrl
     }
     else {
@@ -214,7 +262,12 @@ function Get-RecordIdsFromQuery {
     $nextUrl = $resolvedUrl
 
     while (-not [string]::IsNullOrWhiteSpace($nextUrl)) {
-        $response = Invoke-RestMethod -Method GET -Uri $nextUrl -Headers $headers
+        try {
+            $response = Invoke-RestMethod -Method GET -Uri $nextUrl -Headers $headers -ErrorAction Stop
+        }
+        catch {
+            throw (Get-FriendlyHttpError -ErrorRecord $_ -RequestUrl $nextUrl)
+        }
 
         if ($response.value) {
             foreach ($row in $response.value) {
@@ -266,6 +319,10 @@ if (-not (Test-Path $TestPlanPath)) {
 if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]::Absolute))) {
     Write-Error "EnvironmentUrl '$EnvironmentUrl' is not a valid URL."
     exit 1
+}
+
+if ($EnvironmentUrl -notmatch 'https://[^/]+\.crm[0-9]*\.dynamics\.com/?$') {
+    Write-Warning "EnvironmentUrl does not look like a standard Dataverse org URL (for example: https://org.crm9.dynamics.com). Current value: '$EnvironmentUrl'"
 }
 
 # Build per-run output locations
@@ -349,7 +406,7 @@ try {
     }
 }
 catch {
-    Write-Error $_
+    Write-Error $_.Exception.Message
     exit 1
 }
 
