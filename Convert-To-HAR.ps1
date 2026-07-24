@@ -82,6 +82,8 @@ if (-not $OutputJmx) { $OutputJmx = [System.IO.Path]::ChangeExtension($HarFile, 
 # Build property references (without backtick escaping in output)
 $authTokenRef = '$' + '{__P(auth_token)}'
 $baseUrlRef = '$' + '{__P(base_url)}'
+$threadCountRef = '$' + "{__P(thread_count,$Threads)}"
+$rampUpRef = '$' + "{__P(ramp_up,$RampUp)}"
 
 $har = Get-Content $HarFile -Raw | ConvertFrom-Json
 if (-not $har.log -or -not $har.log.entries) {
@@ -241,8 +243,8 @@ $jmx = @"
           <boolProp name="LoopController.continue_forever">false</boolProp>
           <stringProp name="LoopController.loops">$Loops</stringProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">$Threads</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">$RampUp</stringProp>
+        <stringProp name="ThreadGroup.num_threads">$threadCountRef</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">$rampUpRef</stringProp>
         <boolProp name="ThreadGroup.scheduler">false</boolProp>
         <stringProp name="ThreadGroup.duration"></stringProp>
         <stringProp name="ThreadGroup.delay"></stringProp>
