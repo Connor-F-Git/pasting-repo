@@ -256,6 +256,24 @@ function Get-RecordIdsFromQuery {
         }
     }
     else {
+        if ([string]::IsNullOrWhiteSpace($QueryEntityPath)) {
+            $QueryEntityPath = 'cr9da_fsn_screeningses'
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($QueryEntityPath) -and $QueryEntityPath.TrimStart().StartsWith('$')) {
+            if ([string]::IsNullOrWhiteSpace($QueryString)) {
+                $QueryString = $QueryEntityPath
+            }
+            else {
+                $QueryString = "$QueryEntityPath&$QueryString"
+            }
+            $QueryEntityPath = 'cr9da_fsn_screeningses'
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($QueryString) -and $QueryString.StartsWith('?')) {
+            $QueryString = $QueryString.TrimStart('?')
+        }
+
         if ($Top -le 0) {
             throw '-Top must be greater than 0.'
         }
