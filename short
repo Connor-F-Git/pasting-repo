@@ -1,1 +1,12 @@
-.\Run-JMeter-Tests-Increment.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" -JMeterPath "C:\DevTools\ApacheJMETER-5.5\bin\jmeter.bat" -TestPlanPath ".\updateSummaryReport_STAGE.jmx" -QueryEntityPath "cr9da_fsn_screeningses" -FirstName "SummaryTreasury" -LastName "SummaryTreasury" -ScreeningStatus "In Progress" -Top 10 -Threads 10 -RampUp 10 -Loops 1
+PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> .\Run-JMeter-Tests-Increment.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" -JMeterPath "C:\DevTools\ApacheJMETER-5.5\bin\jmeter.bat" -TestPlanPath ".\updateSummaryReport_STAGE.jmx" -QueryEntityPath "cr9da_fsn_screeningses" -FirstName "SummaryTreasury" -LastName "SummaryTreasury" -ScreeningStatus "In Progress" -Top 10 -Threads 10 -RampUp 10 -Loops 1
+To sign in, use a web browser to open the page https://login.microsoft.com/device and enter the code BKZX38PNQ to authenticate.
+
+Authenticated successfully.
+Querying records from: https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/cr9da_fsn_screeningses?$select=cr9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'%20and%20cr9da_screeningstatus%20eq%20'In%20Progress'
+C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests-Increment.ps1 : Query returned zero screening GUIDs.
+At line:1 char:1
++ .\Run-JMeter-Tests-Increment.ps1 -EnvironmentUrl "https://p365fedscre ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Run-JMeter-Tests-Increment.ps1
+ 
