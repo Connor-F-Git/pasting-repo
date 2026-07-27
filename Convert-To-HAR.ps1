@@ -5,7 +5,8 @@ param(
   [string]$ApiBase = '/api/data/v9.0',
   [int]$Threads = 10,
   [int]$RampUp = -1,
-  [int]$Loops = 1
+  [int]$Loops = 1,
+  [string]$RecordIdGuid = ''
 )
 
 function ConvertTo-XmlText([string]$s) {
@@ -84,6 +85,9 @@ $authTokenRef = '$' + '{__P(auth_token)}'
 $baseUrlRef = '$' + '{__P(base_url)}'
 $threadCountRef = '$' + "{__P(thread_count,$Threads)}"
 $rampUpRef = '$' + "{__P(ramp_up,$RampUp)}"
+$recordIdsDirRef = '$' + '{__P(record_ids_dir)}'
+$threadNumRef = '$' + '{__threadNum}'
+$recordIdVarNameRef = '$' + '{__P(record_id_var_name,record_id)}'
 
 $har = Get-Content $HarFile -Raw | ConvertFrom-Json
 if (-not $har.log -or -not $har.log.entries) {
@@ -110,6 +114,33 @@ if ($entries.Count -eq 0 -and $UrlFilter) {
 if ($entries.Count -eq 0) {
   Write-Error "No HAR entries were available to convert."
   exit 1
+}
+
+# Determine which GUID (if any) represents "the record this session captured",
+# so it can be replaced with ${record_id} and driven per-thread by
+# Run-JMeter-Tests-Increment.ps1's generated CSVs instead of staying hardcoded.
+if (-not $RecordIdGuid) {
+  # Exclude multipart $batch/changeset boundary GUIDs (always repeated, always
+  # noise) via negative lookbehind - otherwise the boundary token gets
+  # mistaken for a genuinely repeated record GUID.
+  $guidPattern = '(?<!batch_)(?<!changeset_)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+  $guidCounts = @{}
+  foreach ($e in $entries) {
+    $haystack = $e.request.url
+    if ($e.request.postData -and $e.request.postData.text) { $haystack += "`n$($e.request.postData.text)" }
+    foreach ($m in [regex]::Matches($haystack, $guidPattern)) {
+      $g = $m.Value.ToLowerInvariant()
+      if ($guidCounts.ContainsKey($g)) { $guidCounts[$g]++ } else { $guidCounts[$g] = 1 }
+    }
+  }
+  $top = $guidCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1
+  if ($top -and $top.Value -gt 1) {
+    $RecordIdGuid = $top.Key
+    Write-Host "Auto-detected repeated record GUID '$RecordIdGuid' ($($top.Value) occurrences) - substituting with `${record_id}`. Pass -RecordIdGuid to override if this is wrong."
+  }
+}
+else {
+  $RecordIdGuid = $RecordIdGuid.ToLowerInvariant()
 }
 
 $baseHost = ([System.Uri]$entries[0].request.url).Host
@@ -155,6 +186,11 @@ foreach ($entry in $entries) {
     else {
       $nameCounts[$rawLabel] = 1
       $label = $rawLabel
+    }
+
+    if ($RecordIdGuid) {
+      $r.Path = $r.Path -replace [regex]::Escape($RecordIdGuid), '${record_id}'
+      if ($r.Body) { $r.Body = $r.Body -replace [regex]::Escape($RecordIdGuid), '${record_id}' }
     }
 
     $xmlLabel = ConvertTo-XmlText $label
@@ -284,6 +320,18 @@ $jmx = @"
             </elementProp>
           </collectionProp>
         </HeaderManager>
+        <hashTree/>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Per-Thread Record IDs" enabled="true">
+          <stringProp name="delimiter">,</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="filename">$recordIdsDirRef/record_ids_thread_$threadNumRef.csv</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="variableNames">$recordIdVarNameRef</stringProp>
+          <stringProp name="shareMode">shareMode.thread</stringProp>
+        </CSVDataSet>
         <hashTree/>
 $samplersXml
         <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
