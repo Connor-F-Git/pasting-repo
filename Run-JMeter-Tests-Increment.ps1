@@ -617,6 +617,10 @@ else {
     $pattern = Join-Path $recordsDir 'record_ids_thread_${__threadNum}.csv'
     $recordProps += "-Jrecord_ids_file_pattern=$(Convert-ToJMeterPath -Path $pattern)"
     $recordProps += "-Jrecord_ids_mode=per_thread"
+    # The JMX's CSVDataSet.filename combines ${__P(record_ids_dir)} with its own
+    # literal ${__threadNum} function call directly in the XML - a property value
+    # can't carry an unevaluated JMeter function, so the directory is passed alone.
+    $recordProps += "-Jrecord_ids_dir=$(Convert-ToJMeterPath -Path $recordsDir)"
 
     Write-Host "Created $Threads per-thread record CSV files in: $recordsDir"
 }
