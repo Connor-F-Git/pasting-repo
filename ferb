@@ -1,3 +1,13 @@
-WARNING: Test plan '.\updateSummaryReport_STAGE.jmx' hardcodes HTTPSampler.domain 'orgab3a5422.crm9.dynamics.com', which does NOT match -EnvironmentUrl host 'p365fedscreenqa.crm9.dynamics.com'. JMeter will send its 
-actual HTTP requests to the domain baked into the .jmx (NOT to -EnvironmentUrl), while this script queries Dataverse for record GUIDs using -EnvironmentUrl. Point -EnvironmentUrl at 'orgab3a5422.crm9.dynamics.com' (or 
-update the .jmx) so the GUIDs you query match the environment JMeter actually hits.
+PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> .\Run-JMeter-Tests-Increment.ps1 `  -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `  -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" `  -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" `  -JMeterPath "C:\DevTools\ApacheJMETER-5.5\bin\jmeter.bat" `  -TestPlanPath ".\updateSummaryReport_STAGE.jmx" ` -FirstName "SummaryTreasury" -LastName "SummaryTreasury"-Top 10 -Threads 10 -RampUp 10 -Loops 1
+Using -Top 10 for the Dataverse GUID query (effective thread count: 10).
+To sign in, use a web browser to open the page https://login.microsoft.com/device and enter the code BTTKGF58L to authenticate.
+
+Authenticated successfully.
+Querying records from: https://p365fedscreenqa.crm9.dynamics.com/api/data/v9.0/cr9da_fsn_screeningses?$select=cr9da_fsn_screeningsid%2Ccreatedon&$orderby=createdon%20desc&$top=10&$filter=cr9da_firstname%20eq%20'SummaryTreasury'%20and%20cr9da_lastname%20eq%20'SummaryTreasury'
+Query returned 0 rows (no records matched the filter/query as sent to Dataverse).
+C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests-Increment.ps1 : Query returned zero screening GUIDs.
+At line:1 char:1
++ .\Run-JMeter-Tests-Increment.ps1 `  -EnvironmentUrl "https://p365feds ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Run-JMeter-Tests-Increment.ps1
