@@ -328,7 +328,7 @@ $jmx = @"
           <boolProp name="ignoreFirstLine">true</boolProp>
           <boolProp name="quotedData">false</boolProp>
           <boolProp name="recycle">true</boolProp>
-          <boolProp name="stopThread">false</boolProp>
+          <boolProp name="stopThread">true</boolProp>
           <stringProp name="variableNames">$recordIdVarNameRef</stringProp>
           <stringProp name="shareMode">shareMode.thread</stringProp>
         </CSVDataSet>
