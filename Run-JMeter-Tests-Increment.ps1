@@ -580,7 +580,7 @@ catch {
 }
 
 if ($DistributionMode -eq 'PerThread' -and $recordIds.Count -lt $Threads) {
-    Write-Warning "You provided fewer IDs ($($recordIds.Count)) than threads ($Threads). Some thread CSV files will be empty and may stop quickly depending on your CSVDataSet settings."
+    Write-Warning "You provided fewer IDs ($($recordIds.Count)) than threads ($Threads). $($Threads - $recordIds.Count) thread(s) will get an empty record CSV; with the CSVDataSet's stopThread=true, those threads will stop immediately without sending any requests."
 }
 
 # Create CSV files used by JMeter.
