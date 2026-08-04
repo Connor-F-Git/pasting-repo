@@ -631,11 +631,14 @@ if ($AssignedToDisplayName) { $recordProps += "-Jassigned_to_display_name=$Assig
 if ($AssignedToEmail) { $recordProps += "-Jassigned_to_email=$AssignedToEmail" }
 if ($AssignedToDate) { $recordProps += "-Jassigned_to_date=$AssignedToDate" }
 
-# Configure JVM heap and GC options for large runs (can be overridden by environment)
+# Configure JVM heap and GC options for large runs.
 $heapString = "-Xms${MinHeapMB}m -Xmx${MaxHeapMB}m"
 $jvmArgs = "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$runDir\heapdump.hprof"
-if (-not $env:HEAP) { $env:HEAP = $heapString }
-if (-not $env:JVM_ARGS) { $env:JVM_ARGS = $jvmArgs }
+# Always overwrite: these are persistent per-terminal env vars, so a stale value
+# from an earlier run in this same session would otherwise silently make
+# -MinHeapMB/-MaxHeapMB have no effect.
+$env:HEAP = $heapString
+$env:JVM_ARGS = $jvmArgs
 
 Write-Host "JMeter HEAP set to: $env:HEAP"
 Write-Host "JVM_ARGS set to: $env:JVM_ARGS"
