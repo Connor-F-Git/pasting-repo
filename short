@@ -1,5 +1,3 @@
-{"@odata.etag":"W/\"33313240\"","cr9da_lastname":"Kelly","cr9da_screeningstatus":"In Progress","cr9da_fsn_screeningsid":"f6b7157c-9169-f111-a823-001dd804bb89","cr9da_adjudicationphase":null,"cr9da_firstname":"Grace"}
-{"@odata.etag":"W/\"33334695\"","cr9da_lastname":"Norman","cr9da_screeningstatus":"In Progress","cr9da_fsn_screeningsid":"39acf021-9269-f111-a823-001dd804bb89","cr9da_adjudicationphase":null,"cr9da_firstname":"Matthew"}
-{"@odata.etag":"W/\"33261791\"","cr9da_lastname":"Wallace","cr9da_screeningstatus":"Unassigned","cr9da_fsn_screeningsid":"f361fd78-7371-f111-ab0c-001dd8050a5c","cr9da_adjudicationphase":null,"cr9da_firstname":"Tammy"}
-{"@odata.etag":"W/\"32214520\"","cr9da_lastname":"Dorado","cr9da_screeningstatus":"Unassigned","cr9da_fsn_screeningsid":"f5ae0bac-dd31-f111-88b3-001dd806c5d9","cr9da_adjudicationphase":null,"cr9da_firstname":"Jorge"}
-{"@odata.etag":"W/\"32628909\"","cr9da_lastname":"Phila","cr9da_screeningstatus":"In Progress","cr9da_fsn_screeningsid":"7e166b14-b548-f111-88b3-001dd806d1e6","cr9da_adjudicationphase":null,"cr9da_firstname":"Julie"}
+ProcessID CommandLine                                                                                                                                                                                    
+--------- -----------                                                                                                                                                                                    
+    27296 "java.exe"  --add-opens java.desktop/sun.awt=ALL-UNNAMED --add-opens java.desktop/sun.swing=ALL-UNNAMED --add-opens java.desktop/javax.swing.text.html=ALL-UNNAMED --add-opens java.desktop/...
