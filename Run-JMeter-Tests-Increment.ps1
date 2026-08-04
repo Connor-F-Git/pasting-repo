@@ -48,8 +48,12 @@ param(
     [int]$Threads = 10,
     [int]$RampUp = 30,
     [int]$Loops = 1,
-    [int]$MinHeapMB = 1024,
-    [int]$MaxHeapMB = 4096,
+    # Leave at 0 to auto-scale heap from the actual thread count (recommended).
+    # Pass an explicit value to pin the heap size and disable auto-scaling.
+    [int]$MinHeapMB = 0,
+    [int]$MaxHeapMB = 0,
+    [int]$HeapMBPerThread = 6,
+    [int]$BaseHeapMB = 512,
 
     [string]$RecordIdVariableName = 'record_id',
 
@@ -630,6 +634,25 @@ $recordProps += "-Jrecord_id_var_name=$RecordIdVariableName"
 if ($AssignedToDisplayName) { $recordProps += "-Jassigned_to_display_name=$AssignedToDisplayName" }
 if ($AssignedToEmail) { $recordProps += "-Jassigned_to_email=$AssignedToEmail" }
 if ($AssignedToDate) { $recordProps += "-Jassigned_to_date=$AssignedToDate" }
+
+# Auto-scale heap from actual thread concurrency unless the caller pins an explicit
+# size: each JMeter thread holds its own connection/response/assertion state, so a
+# fixed heap silently OOMs as thread count grows regardless of total request count.
+if (-not ($PSBoundParameters.ContainsKey('MinHeapMB') -or $PSBoundParameters.ContainsKey('MaxHeapMB'))) {
+    $computedMaxHeapMB = $BaseHeapMB + ($effectiveThreadCount * $HeapMBPerThread)
+
+    $totalPhysicalMB = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1MB)
+    $heapCeilingMB = [math]::Floor($totalPhysicalMB * 0.7)
+
+    if ($computedMaxHeapMB -gt $heapCeilingMB) {
+        Write-Warning "Auto-scaled heap for $effectiveThreadCount threads would be ${computedMaxHeapMB}MB, exceeding 70% of this machine's ${totalPhysicalMB}MB RAM. Capping -Xmx at ${heapCeilingMB}MB; reduce -Threads or run from a machine with more RAM if this is insufficient."
+        $computedMaxHeapMB = $heapCeilingMB
+    }
+
+    $MaxHeapMB = [math]::Max($computedMaxHeapMB, 1024)
+    $MinHeapMB = $MaxHeapMB
+    Write-Host "Auto-scaled JVM heap for $effectiveThreadCount threads: -Xms${MinHeapMB}m -Xmx${MaxHeapMB}m ($HeapMBPerThread MB/thread + ${BaseHeapMB}MB base). Pass -MaxHeapMB to override."
+}
 
 # Configure JVM heap and GC options for large runs.
 $heapString = "-Xms${MinHeapMB}m -Xmx${MaxHeapMB}m"
