@@ -1,24 +1,22 @@
-"java.exe"  --add-opens java.desktop/sun.awt=ALL-UNNAMED --add-opens java.desktop/sun.swing=ALL-UNNAMED --add-opens java.desktop/javax.swing.text.html=ALL-UNNAMED --add-opens 
-java.desktop/java.awt=ALL-UNNAMED --add-opens java.desktop/java.awt.font=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED 
---add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.desktop/sun.awt.shell=ALL-UNNAMED 
--XX:+HeapDumpOnOutOfMemoryError -Xms1024m -Xmx4096m  -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:G1ReservePercent=20  -Djava.security.egd=file:/dev/urandom -Duser.language="en" -Duser.region="EN"  
--XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-04_07-49-32\heapdump.hprof -jar 
-"C:\DevTools\ApacheJMETER-5.5\bin\ApacheJMeter.jar" -n -t .\updateSummaryReport_STAGE.jmx -l C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-04_07-49-32\results.jtl -e -o 
-C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-04_07-49-32\report "-Jauth_token=Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImZFdHFyaEtUMWJYQUdhZlNkUW9OMXZYVFJwSSIsImtpZCI6ImZ
-FdHFyaEtUMWJYQUdhZlNkUW9OMXZYVFJwSSJ9.eyJhdWQiOiJodHRwczovL29yZ2FiM2E1NDIyLmNybTkuZHluYW1pY3MuY29tIiwiaXNzIjoiaHR0cHM6Ly9zdHMud2luZG93cy5uZXQvYjM5N2M2NTMtNWIxOS00NjNmLWI5ZmMtYWY2NThkZWQ5MTI4LyIsImlhdCI
-6MTc4NTg0Mzg5NywibmJmIjoxNzg1ODQzODk3LCJleHAiOjE3ODU4NDg5ODcsImFjY3QiOjAsImFjciI6IjEiLCJhY3JzIjpbInAxIl0sImFpbyI6IkFUUUJ5LzRjQUFBQUdrTEMrT29iQ0w0S0xHNHFiWVFxWHA0NjEwY2FqLzF4WmpLOWYwS0s4L0kySmt4TE1ZWXlB
-RjVVL1hyOXZxbTUvSjQ5OGRuRnJyNGpXZ3h6UWNkM3lvaitJSU1RQjN5L1NCVVhvazFRWWcrKzFrUDgwdWZyaXgzYkptTTdRb1VoV3FycElIM2FTWjBCWmI2QkFGZ2xPd1Ryd1BQVkRlZnhObjl0cHJDV2tCeGQ5TG1mN2E2QmZsY1dPMUlIM2pFc1UvRmlUeDcweURaT
-EZHcUJRNEcwd0dsMWRubnIzY3YzR3J6bGtqR0FwTjJaWC9kWDJ5cHNuV0dVaytMaFpWcjJmeTUyMGUwZlVtMXpqdGxpYTNnZFpPTHFFTzBlVWRCcWFJQWVGMTY0Um1uazBrdTNOYVZKYVJsSjJZWDBsQVNFNHhmOU1URTEzUkZGKzUzbW1PeW9KSE4xdXc1cWNwaGJ2bH
-dTZDVIelNSdzVXOGtLNEU0SUtkTDg2Q1FQVmF2NlFnSENHQXkwLzFiaFRNQyswb3p6YlE9PSIsImFtciI6WyJyc2EiLCJtZmEiXSwiYXBwaWQiOiIxOTUwYTI1OC0yMjdiLTRlMzEtYTljZi03MTc0OTU5NDVmYzIiLCJhcHBpZGFjciI6IjAiLCJmYW1pbHlfbmFtZSI
-6IkZlZGFsZW4iLCJnaXZlbl9uYW1lIjoiQ29ubm9yIiwiaWR0eXAiOiJ1c2VyIiwiaXBhZGRyIjoiMTk5LjE2OS4yMDAuMTczIiwibG9naW5faGludCI6Ik8uQ2lSbU1XRTVZVFUzWWkweVlqTTNMVFF3WVRJdE9HTTJNUzFsTkRBeVpEZzROV0UwT0RVU0pHSXpPVGRq
-TmpVekxUVmlNVGt0TkRZelppMWlPV1pqTFdGbU5qVTRaR1ZrT1RFeU9Cb2JRMjl1Ym05eUxrWmxaR0ZzWlc1QWNHaHBiQzVtY21JdWIzSm5JSWdCIiwibmFtZSI6IkZlZGFsZW4sIENvbm5vciIsIm9pZCI6ImYxYTlhNTdiLTJiMzctNDBhMi04YzYxLWU0MDJkODg1Y
-TQ4NSIsIm9ucHJlbV9zaWQiOiJTLTEtNS0yMS02NjI1Mjg0ODgtMzQ4NDU3MzQ1LTE3NjAzNzYwMzItMjQ3ODE2NCIsInB1aWQiOiIxMDAzMjAwM0M0NDRCNzM5IiwicmgiOiIxLkFSY0FVOGFYc3hsYlAwYTVfSzlsamUyUktBY0FBQUFBQUFBQXdBQUFBQUFBQUFBWE
-FMRVhBQS4iLCJzY3AiOiJ1c2VyX2ltcGVyc29uYXRpb24iLCJzaWQiOiJjYWNiYjY4OC04YTAxLTQ3NjYtODNjMy1lN2I2NDlmMDJiNWEiLCJzdWIiOiJRVW5qYUFaNnJ1TDZYSXRFdFo5WFVXRzh3aTNKekhSd0hCRndKMUFMOFo4IiwidGVuYW50X3JlZ2lvbl9zY29
-wZSI6Ik5BIiwidGlkIjoiYjM5N2M2NTMtNWIxOS00NjNmLWI5ZmMtYWY2NThkZWQ5MTI4IiwidW5pcXVlX25hbWUiOiJDb25ub3IuRmVkYWxlbkBwaGlsLmZyYi5vcmciLCJ1cG4iOiJDb25ub3IuRmVkYWxlbkBwaGlsLmZyYi5vcmciLCJ1dGkiOiJJMk9aY1dOV21F
-aXRMczZxZUhFckFBIiwidmVyIjoiMS4wIiwid2lkcyI6WyJiNzlmYmY0ZC0zZWY5LTQ2ODktODE0My03NmIxOTRlODU1MDkiXSwieG1zX2FjdF9mY3QiOiIzIDUiLCJ4bXNfZnRkIjoidXpacnVqaE44a2ZEUFlDZXZWTkthWWxNM2RfQk5pUXNLaWVZTjB2dndLSUJkW
-E51YjNKMGFDMWtjMjF6IiwieG1zX2lkcmVsIjoiMSAxOCIsInhtc19zdWJfZmN0IjoiMyAxNiJ9.nnNPa6fCI_N-gex-dCgPL9FOIKvAdxD1OeRbsGjEZDB_av6DLTgjLQZT1UJN842vJunH_CpQMq1w_FBbKnJz_Cx3LMqJ2Ae6gZmRiuzqcwFLg1iwZBFNWsw-bPuD5
-IsymTOv3W9rbjGV7AcJTpisyZICnAWpGtRw92JcITIE5y2fnlAHRVNICraRkm3N608c56yti6qyOwt1i9aHaT-u0Ri5FAEoVOwxctlfZJblpOAqPZKpv2ZostJmpgICYGaU0fjHJvLQzbvCvFEdt4TLkb7pBJSWDOQ0E44JetkZujB0YznoIdvpf6akrMSnS_zTMbIgoG
-39OGeE3h8mvAFO0A" -Jbase_url=orgab3a5422.crm9.dynamics.com -Jthread_count=800 -Jramp_up=100 -Jloop_count=1 -Jjmeter.save.saveservice.output_format=csv -Jjmeter.save.saveservice.response_data=false 
--Jjmeter.save.saveservice.samplerData=false -Jjmeter.save.saveservice.response_headers=false -Jjmeter.save.saveservice.request_headers=false 
--Jrecord_ids_file_pattern=C:/Users/C1CXF05/Documents/JMeter_Auth_Automation/results/2026-08-04_07-49-32/records/record_ids_thread_${__threadNum}.csv -Jrecord_ids_mode=per_thread 
--Jrecord_ids_dir=C:/Users/C1CXF05/Documents/JMeter_Auth_Automation/results/2026-08-04_07-49-32/records -Jrecord_id_var_name=record_id
+
+2026-08-11 13:07:10,305 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_34.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_34.csv must exist and be readable
+2026-08-11 13:07:11,054 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_35.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_35.csv must exist and be readable
+2026-08-11 13:07:11,803 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_36.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_36.csv must exist and be readable
+2026-08-11 13:07:12,550 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_37.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_37.csv must exist and be readable
+2026-08-11 13:07:13,302 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_38.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_38.csv must exist and be readable
+2026-08-11 13:07:14,048 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_39.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_39.csv must exist and be readable
+2026-08-11 13:07:14,798 ERROR o.a.j.t.JMeterThread: Test failed!
+java.lang.IllegalArgumentException: Could not read file header line for file 1/record_ids_thread_40.csv
+Caused by: java.lang.IllegalArgumentException: File record_ids_thread_40.csv must exist and be readable
