@@ -206,6 +206,16 @@ Write-Host "JVM_ARGS set to: $env:JVM_ARGS"
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Test run complete. Results saved to: $jtlFile"
 
+    # JMeter's dashboard generator throws a bare "An error occurred: null" when the
+    # results file has zero sample rows - fail fast with a clearer message instead,
+    # since that almost always means every thread errored out before any sampler ran
+    # (e.g. a CSVDataSet with stopThread=true failing to find its file), not a heap issue.
+    $sampleRowCount = [math]::Max(0, (Get-Content $jtlFile | Measure-Object -Line).Lines - 1)
+    if ($sampleRowCount -le 0) {
+        Write-Warning "$jtlFile contains no sample rows - the test plan ran but every thread produced zero requests. Skipping report generation. Check the JMeter log for errors (e.g. a CSVDataSet or other config element failing and stopping threads before their first sampler)."
+        return
+    }
+
     # Report generation is a separate JVM run from the load test on purpose: dashboard
     # synthesis needs memory proportional to total sample count, not thread concurrency,
     # so reusing the thread-count-scaled load-test heap here previously starved it and
