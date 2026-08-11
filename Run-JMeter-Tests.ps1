@@ -206,8 +206,18 @@ Write-Host "JVM_ARGS set to: $env:JVM_ARGS"
     "-Jjmeter.save.saveservice.request_headers=false"
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "Report saved to: $reportDir"
-    Start-Process (Join-Path $reportDir "index.html")
+    Write-Host "Test run complete. Results saved to: $jtlFile"
+    # JMeter can exit 0 even when its own dashboard-generation step fails (e.g. the
+    # "Error generating the report: java.lang.NullPointerException" JMeter logs
+    # itself), leaving no index.html behind for Start-Process to open.
+    $reportIndex = Join-Path $reportDir "index.html"
+    if (Test-Path $reportIndex) {
+        Write-Host "Report saved to: $reportDir"
+        Start-Process $reportIndex
+    }
+    else {
+        Write-Warning "JMeter finished the test run but failed to generate the HTML report (no index.html in $reportDir) - see the 'Error generating the report' message above. Raw results are still available at $jtlFile; you can retry the dashboard alone with: & '$JMeterPath' -g '$jtlFile' -o '$reportDir'"
+    }
 }
 else {
     Write-Error "JMeter exited with code $LASTEXITCODE. Check $runDir for details."
