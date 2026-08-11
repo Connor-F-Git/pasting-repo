@@ -6,7 +6,12 @@ param(
   [int]$Threads = 10,
   [int]$RampUp = -1,
   [int]$Loops = 1,
-  [string]$RecordIdGuid = ''
+  [string]$RecordIdGuid = '',
+  # Off by default: a detected record GUID is baked in as a property default
+  # (zero file dependency, works standalone). Pass this switch only for jmx
+  # files meant to be driven by Run-JMeter-Tests-Increment.ps1's bulk record
+  # CSVs - it adds a CSVDataSet that REQUIRES an external file to exist.
+  [switch]$EnableBulkRecordIds
 )
 
 function ConvertTo-XmlText([string]$s) {
@@ -85,10 +90,8 @@ $authTokenRef = '$' + '{__P(auth_token)}'
 $baseUrlRef = '$' + '{__P(base_url)}'
 $threadCountRef = '$' + "{__P(thread_count,$Threads)}"
 $rampUpRef = '$' + "{__P(ramp_up,$RampUp)}"
-# Single shared file (not one-per-thread): every thread reads/recycles the same
-# CSV, so the jmx never hard-requires a specific thread count's worth of files to
-# exist - it works standalone (default file, one row) or fed a bulk list via
-# -Jrecord_ids_file from Run-JMeter-Tests-Increment.ps1.
+# Single shared file (not one-per-thread): only used when -EnableBulkRecordIds is
+# passed, so a plain conversion never requires any external record-id file to exist.
 $recordIdsFileRef = '$' + '{__P(record_ids_file,record_ids.csv)}'
 $recordIdVarNameRef = '$' + '{__P(record_id_var_name,record_id)}'
 
@@ -263,8 +266,24 @@ $perSamplerHeaders
 $harName = ConvertTo-XmlText (Split-Path $HarFile -Leaf)
 $samplersXml = $sb.ToString()
 
-$csvDataSetXml = ''
+# Default: record_id resolves to the originally-captured GUID via a property
+# default at Test Plan scope - no file, no CSVDataSet, works standalone.
+$recordIdDefaultArgXml = ''
 if ($RecordIdGuid) {
+  $recordIdPropertyDefaultRef = '$' + "{__P(record_id,$RecordIdGuid)}"
+  $recordIdDefaultArgXml = @"
+            <elementProp name="record_id" elementType="Argument">
+              <stringProp name="Argument.name">record_id</stringProp>
+              <stringProp name="Argument.value">$recordIdPropertyDefaultRef</stringProp>
+              <stringProp name="Argument.metadata">=</stringProp>
+            </elementProp>
+"@
+}
+
+# Opt-in only: adds a CSVDataSet that overrides record_id per-iteration from an
+# external file, for bulk multi-record runs via Run-JMeter-Tests-Increment.ps1.
+$csvDataSetXml = ''
+if ($RecordIdGuid -and $EnableBulkRecordIds) {
   $csvDataSetXml = @"
         <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Record IDs" enabled="true">
           <stringProp name="delimiter">,</stringProp>
@@ -290,7 +309,8 @@ $jmx = @"
       <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
-        <collectionProp name="Arguments.arguments"/>
+        <collectionProp name="Arguments.arguments">
+$recordIdDefaultArgXml        </collectionProp>
       </elementProp>
     </TestPlan>
     <hashTree>
@@ -389,21 +409,6 @@ $csvDataSetXml$samplersXml
 $jmx | Set-Content -Path $OutputJmx -Encoding UTF8
 Write-Host "$OutputJmx ($samplerCount samplers)"
 
-if ($RecordIdGuid) {
-  # Default single-row companion file so the jmx runs standalone (e.g. via
-  # Run-JMeter-Tests.ps1) without needing any record-id CSV generation step;
-  # Run-JMeter-Tests-Increment.ps1 overrides this with -Jrecord_ids_file for a
-  # real bulk list. Written next to the jmx since CSVDataSet resolves relative
-  # filenames against the running test plan's directory.
-  # Split-Path -Parent returns '' (not '.') for a bare relative filename, so
-  # resolve to a full path first rather than feeding '' to Join-Path.
-  # GetUnresolvedProviderPathFromPSPath (not [IO.Path]::GetFullPath's 2-arg
-  # overload, which is .NET Core-only and missing on Windows PowerShell 5.1)
-  # resolves relative paths against the current location on both PS versions.
-  $outputJmxFullPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputJmx)
-  $defaultCsv = Join-Path (Split-Path $outputJmxFullPath -Parent) 'record_ids.csv'
-  if (-not (Test-Path $defaultCsv)) {
-    Set-Content -Path $defaultCsv -Value @('record_id', $RecordIdGuid) -Encoding UTF8
-    Write-Host "$defaultCsv (default record_id CSV, 1 row)"
-  }
+if ($RecordIdGuid -and $EnableBulkRecordIds) {
+  Write-Host "Bulk record-id mode enabled: this jmx requires -Jrecord_ids_file to be set (e.g. via Run-JMeter-Tests-Increment.ps1) or its CSVDataSet will fail to find a file."
 }
