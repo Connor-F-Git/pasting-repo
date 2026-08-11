@@ -1,15 +1,17 @@
-Authenticated successfully.
-Auto-scaled JVM heap for 40 threads: -Xms1024m -Xmx1024m (6 MB/thread + 512MB base). Pass -MaxHeapMB to override.
-JMeter HEAP set to: -Xms1024m -Xmx1024m
-JVM_ARGS set to: -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_13-06-31\heapdump.hprof
-Creating summariser <summary>
-Created the tree successfully using ./updateScreening_ScreeningPartner_STAGE.jmx
-Starting standalone test @ 2026 Aug 11 13:06:45 EDT (1786468005172)
-Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
-Warning: Nashorn engine is planned to be removed from a future JDK release
-summary =      0 in 00:00:00 = ******/s Avg:     0 Min: 9223372036854775807 Max: -9223372036854775808 Err:     0 (0.00%)
-Tidying up ...    @ 2026 Aug 11 13:07:14 EDT (1786468034802)
-... end of run
-Test run complete. Results saved to: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_13-06-31\results.jtl
-WARNING: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_13-06-31\results.jtl contains no sample rows - the test plan ran but every thread produced zero requests. Skipping report 
-generation. Check the JMeter log for errors (e.g. a CSVDataSet or other config element failing and stopping threads before their first sampler).
+PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> ./Convert-HAR-to-JMX.ps1 -HarFile updateScreening_ScreeningPartner_STAGE.har                                                                        
+6 total entries in HAR.                                                                                                                                          
+Auto-detected repeated record GUID 'b3053ca8-8e91-f111-ab0e-001dd8095749' (5 occurrences) - substituting with ${record_id}. Pass -RecordIdGuid to override if this is wrong.
+updateScreening_ScreeningPartner_STAGE.jmx (6 samplers)
+Join-Path : Cannot bind argument to parameter 'Path' because it is an empty string.
+At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:398 char:27
++   $defaultCsv = Join-Path (Split-Path $OutputJmx -Parent) 'record_ids ...
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Join-Path], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.JoinPathCommand
+ 
+Test-Path : Cannot bind argument to parameter 'Path' because it is null.
+At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:399 char:23
++   if (-not (Test-Path $defaultCsv)) {
++                       ~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Test-Path], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.TestPathCommand
