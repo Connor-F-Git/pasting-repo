@@ -1,16 +1,23 @@
-PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> ./Convert-HAR-to-JMX.ps1 -HarFile updateScreening_ScreeningPartner_STAGE.har                                                                        
-6 total entries in HAR.                                                                                                                                          
+PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> ./Convert-HAR-to-JMX.ps1 -HarFile updateScreening_ScreeningPartner_STAGE.har
+6 total entries in HAR.
 Auto-detected repeated record GUID 'b3053ca8-8e91-f111-ab0e-001dd8095749' (5 occurrences) - substituting with ${record_id}. Pass -RecordIdGuid to override if this is wrong.
 updateScreening_ScreeningPartner_STAGE.jmx (6 samplers)
-Join-Path : Cannot bind argument to parameter 'Path' because it is an empty string.
-At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:398 char:27
-+   $defaultCsv = Join-Path (Split-Path $OutputJmx -Parent) 'record_ids ...
-+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidData: (:) [Join-Path], ParameterBindingValidationException
-    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.JoinPathCommand
+Cannot find an overload for "GetFullPath" and the argument count: "2".
+At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:400 char:3
++   $outputJmxFullPath = [System.IO.Path]::GetFullPath($OutputJmx, (Get ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodException
+    + FullyQualifiedErrorId : MethodCountCouldNotFindBest
+ 
+Split-Path : Cannot bind argument to parameter 'Path' because it is null.
+At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:401 char:39
++   $defaultCsv = Join-Path (Split-Path $outputJmxFullPath -Parent) 're ...
++                                       ~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Split-Path], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.SplitPathCommand
  
 Test-Path : Cannot bind argument to parameter 'Path' because it is null.
-At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:399 char:23
+At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Convert-HAR-to-JMX.ps1:402 char:23
 +   if (-not (Test-Path $defaultCsv)) {
 +                       ~~~~~~~~~~~
     + CategoryInfo          : InvalidData: (:) [Test-Path], ParameterBindingValidationException
