@@ -1,16 +1,15 @@
 Authenticated successfully.
 Auto-scaled JVM heap for 40 threads: -Xms1024m -Xmx1024m (6 MB/thread + 512MB base). Pass -MaxHeapMB to override.
 JMeter HEAP set to: -Xms1024m -Xmx1024m
-JVM_ARGS set to: -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_11-25-34\heapdump.hprof
+JVM_ARGS set to: -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_13-06-31\heapdump.hprof
 Creating summariser <summary>
 Created the tree successfully using ./updateScreening_ScreeningPartner_STAGE.jmx
-Starting standalone test @ 2026 Aug 11 11:25:46 EDT (1786461946812)
+Starting standalone test @ 2026 Aug 11 13:06:45 EDT (1786468005172)
 Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
 Warning: Nashorn engine is planned to be removed from a future JDK release
 summary =      0 in 00:00:00 = ******/s Avg:     0 Min: 9223372036854775807 Max: -9223372036854775808 Err:     0 (0.00%)
-Tidying up ...    @ 2026 Aug 11 11:26:16 EDT (1786461976436)
+Tidying up ...    @ 2026 Aug 11 13:07:14 EDT (1786468034802)
 ... end of run
-Test run complete. Results saved to: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_11-25-34\results.jtl
-Generating HTML report (heap: -Xmx1024m, sized from 1MB results file)...
-An error occurred: null
-errorlevel=1
+Test run complete. Results saved to: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_13-06-31\results.jtl
+WARNING: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_13-06-31\results.jtl contains no sample rows - the test plan ran but every thread produced zero requests. Skipping report 
+generation. Check the JMeter log for errors (e.g. a CSVDataSet or other config element failing and stopping threads before their first sampler).
