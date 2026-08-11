@@ -192,8 +192,6 @@ Write-Host "JVM_ARGS set to: $env:JVM_ARGS"
     -n `
     -t $TestPlanPath `
     -l $jtlFile `
-    -e `
-    -o $reportDir `
     "-Jauth_token=Bearer $accessToken" `
     "-Jbase_url=$hostname" `
     "-Jthread_count=$Threads" `
@@ -207,16 +205,31 @@ Write-Host "JVM_ARGS set to: $env:JVM_ARGS"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Test run complete. Results saved to: $jtlFile"
-    # JMeter can exit 0 even when its own dashboard-generation step fails (e.g. the
-    # "Error generating the report: java.lang.NullPointerException" JMeter logs
-    # itself), leaving no index.html behind for Start-Process to open.
+
+    # Report generation is a separate JVM run from the load test on purpose: dashboard
+    # synthesis needs memory proportional to total sample count, not thread concurrency,
+    # so reusing the thread-count-scaled load-test heap here previously starved it and
+    # surfaced as "Error generating the report: java.lang.NullPointerException".
+    $jtlSizeMB = [math]::Ceiling((Get-Item $jtlFile).Length / 1MB)
+    $reportHeapMB = [math]::Max(1024, $jtlSizeMB * 20)
+    $totalPhysicalMB = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1MB)
+    $reportHeapCeilingMB = [math]::Floor($totalPhysicalMB * 0.7)
+    if ($reportHeapMB -gt $reportHeapCeilingMB) {
+        $reportHeapMB = $reportHeapCeilingMB
+    }
+    $env:HEAP = "-Xms${reportHeapMB}m -Xmx${reportHeapMB}m"
+    $env:JVM_ARGS = "-XX:+UseG1GC"
+
+    Write-Host "Generating HTML report (heap: -Xmx${reportHeapMB}m, sized from ${jtlSizeMB}MB results file)..."
+    & $JMeterPath -g $jtlFile -o $reportDir
+
     $reportIndex = Join-Path $reportDir "index.html"
-    if (Test-Path $reportIndex) {
+    if ($LASTEXITCODE -eq 0 -and (Test-Path $reportIndex)) {
         Write-Host "Report saved to: $reportDir"
         Start-Process $reportIndex
     }
     else {
-        Write-Warning "JMeter finished the test run but failed to generate the HTML report (no index.html in $reportDir) - see the 'Error generating the report' message above. Raw results are still available at $jtlFile; you can retry the dashboard alone with: & '$JMeterPath' -g '$jtlFile' -o '$reportDir'"
+        Write-Warning "Report generation failed (exit code $LASTEXITCODE). Raw results are still available at $jtlFile; retry the dashboard alone with: & '$JMeterPath' -g '$jtlFile' -o '$reportDir'"
     }
 }
 else {
