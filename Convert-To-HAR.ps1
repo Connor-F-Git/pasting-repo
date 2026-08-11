@@ -395,7 +395,10 @@ if ($RecordIdGuid) {
   # Run-JMeter-Tests-Increment.ps1 overrides this with -Jrecord_ids_file for a
   # real bulk list. Written next to the jmx since CSVDataSet resolves relative
   # filenames against the running test plan's directory.
-  $defaultCsv = Join-Path (Split-Path $OutputJmx -Parent) 'record_ids.csv'
+  # Split-Path -Parent returns '' (not '.') for a bare relative filename, so
+  # resolve to a full path first rather than feeding '' to Join-Path.
+  $outputJmxFullPath = [System.IO.Path]::GetFullPath($OutputJmx, (Get-Location).Path)
+  $defaultCsv = Join-Path (Split-Path $outputJmxFullPath -Parent) 'record_ids.csv'
   if (-not (Test-Path $defaultCsv)) {
     Set-Content -Path $defaultCsv -Value @('record_id', $RecordIdGuid) -Encoding UTF8
     Write-Host "$defaultCsv (default record_id CSV, 1 row)"
