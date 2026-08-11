@@ -397,7 +397,10 @@ if ($RecordIdGuid) {
   # filenames against the running test plan's directory.
   # Split-Path -Parent returns '' (not '.') for a bare relative filename, so
   # resolve to a full path first rather than feeding '' to Join-Path.
-  $outputJmxFullPath = [System.IO.Path]::GetFullPath($OutputJmx, (Get-Location).Path)
+  # GetUnresolvedProviderPathFromPSPath (not [IO.Path]::GetFullPath's 2-arg
+  # overload, which is .NET Core-only and missing on Windows PowerShell 5.1)
+  # resolves relative paths against the current location on both PS versions.
+  $outputJmxFullPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputJmx)
   $defaultCsv = Join-Path (Split-Path $outputJmxFullPath -Parent) 'record_ids.csv'
   if (-not (Test-Path $defaultCsv)) {
     Set-Content -Path $defaultCsv -Value @('record_id', $RecordIdGuid) -Encoding UTF8
