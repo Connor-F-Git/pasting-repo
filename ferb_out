@@ -1,9 +1,18 @@
+Authenticated successfully.
+Auto-scaled JVM heap for 40 threads: -Xms1024m -Xmx1024m (6 MB/thread + 512MB base). Pass -MaxHeapMB to override.
+JMeter HEAP set to: -Xms1024m -Xmx1024m
+JVM_ARGS set to: -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-36-46\heapdump.hprof
+Creating summariser <summary>
+Created the tree successfully using ./updateScreening_ScreeningPartner_STAGE.jmx
+Starting standalone test @ 2026 Aug 11 09:36:53 EDT (1786455413406)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+Warning: Nashorn engine is planned to be removed from a future JDK release
+summary =      0 in 00:00:00 = ******/s Avg:     0 Min: 9223372036854775807 Max: -9223372036854775808 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Aug 11 09:37:23 EDT (1786455443039)
 Error generating the report: java.lang.NullPointerException
 ... end of run
-Report saved to: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-23-03\report
-Start-Process : This command cannot be run due to the error: The system cannot find the file specified.
-At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Run-JMeter-Tests.ps1:210 char:5
-+     Start-Process (Join-Path $reportDir "index.html")
-+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (:) [Start-Process], InvalidOperationException
-    + FullyQualifiedErrorId : InvalidOperationException,Microsoft.PowerShell.Commands.StartProcessCommand
+Test run complete. Results saved to: C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-36-46\results.jtl
+WARNING: JMeter finished the test run but failed to generate the HTML report (no index.html in C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-36-46\report) - see the 'Error 
+generating the report' message above. Raw results are still available at C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-36-46\results.jtl; you can retry the dashboard alone 
+with: & 'C:\DevTools\ApacheJMETER-5.5\bin\jmeter.bat' -g 'C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-36-46\results.jtl' -o 
+'C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\results\2026-08-11_09-36-46\report'
