@@ -85,8 +85,11 @@ $authTokenRef = '$' + '{__P(auth_token)}'
 $baseUrlRef = '$' + '{__P(base_url)}'
 $threadCountRef = '$' + "{__P(thread_count,$Threads)}"
 $rampUpRef = '$' + "{__P(ramp_up,$RampUp)}"
-$recordIdsDirRef = '$' + '{__P(record_ids_dir)}'
-$threadNumRef = '$' + '{__threadNum}'
+# Single shared file (not one-per-thread): every thread reads/recycles the same
+# CSV, so the jmx never hard-requires a specific thread count's worth of files to
+# exist - it works standalone (default file, one row) or fed a bulk list via
+# -Jrecord_ids_file from Run-JMeter-Tests-Increment.ps1.
+$recordIdsFileRef = '$' + '{__P(record_ids_file,record_ids.csv)}'
 $recordIdVarNameRef = '$' + '{__P(record_id_var_name,record_id)}'
 
 $har = Get-Content $HarFile -Raw | ConvertFrom-Json
@@ -260,6 +263,24 @@ $perSamplerHeaders
 $harName = ConvertTo-XmlText (Split-Path $HarFile -Leaf)
 $samplersXml = $sb.ToString()
 
+$csvDataSetXml = ''
+if ($RecordIdGuid) {
+  $csvDataSetXml = @"
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Record IDs" enabled="true">
+          <stringProp name="delimiter">,</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="filename">$recordIdsFileRef</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="variableNames">$recordIdVarNameRef</stringProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+"@
+}
+
 $jmx = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
@@ -321,19 +342,7 @@ $jmx = @"
           </collectionProp>
         </HeaderManager>
         <hashTree/>
-        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Per-Thread Record IDs" enabled="true">
-          <stringProp name="delimiter">,</stringProp>
-          <stringProp name="fileEncoding">UTF-8</stringProp>
-          <stringProp name="filename">$recordIdsDirRef/record_ids_thread_$threadNumRef.csv</stringProp>
-          <boolProp name="ignoreFirstLine">true</boolProp>
-          <boolProp name="quotedData">false</boolProp>
-          <boolProp name="recycle">true</boolProp>
-          <boolProp name="stopThread">true</boolProp>
-          <stringProp name="variableNames">$recordIdVarNameRef</stringProp>
-          <stringProp name="shareMode">shareMode.thread</stringProp>
-        </CSVDataSet>
-        <hashTree/>
-$samplersXml
+$csvDataSetXml$samplersXml
         <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
@@ -379,3 +388,16 @@ $samplersXml
 
 $jmx | Set-Content -Path $OutputJmx -Encoding UTF8
 Write-Host "$OutputJmx ($samplerCount samplers)"
+
+if ($RecordIdGuid) {
+  # Default single-row companion file so the jmx runs standalone (e.g. via
+  # Run-JMeter-Tests.ps1) without needing any record-id CSV generation step;
+  # Run-JMeter-Tests-Increment.ps1 overrides this with -Jrecord_ids_file for a
+  # real bulk list. Written next to the jmx since CSVDataSet resolves relative
+  # filenames against the running test plan's directory.
+  $defaultCsv = Join-Path (Split-Path $OutputJmx -Parent) 'record_ids.csv'
+  if (-not (Test-Path $defaultCsv)) {
+    Set-Content -Path $defaultCsv -Value @('record_id', $RecordIdGuid) -Encoding UTF8
+    Write-Host "$defaultCsv (default record_id CSV, 1 row)"
+  }
+}
