@@ -1,29 +1,50 @@
-param([string]$FilePath)
+param (
+    [Parameter(Mandatory=$true, Position=0)]
+    [string]$InputPath,
+
+    [Parameter(Mandatory=$false, Position=1)]
+    [string]$OutputPath
+)
 
 try {
-    # Resolve relative paths to full absolute paths required by COM
-    $AbsolutePath = (Resolve-Path -Path $FilePath -ErrorAction Stop).Path
+    # Resolve absolute path for Outlook COM
+    $ResolvedInput = (Resolve-Path -Path $InputPath -ErrorAction Stop).Path
 
-    # Initialize Outlook COM Object
+    # Default to saving as .txt with the same name in the same directory
+    if (-not $OutputPath) {
+        $OutputPath = [System.IO.Path]::ChangeExtension($ResolvedInput, ".txt")
+    } else {
+        $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+    }
+
+    # Initialize Outlook COM
     $outlook = New-Object -ComObject Outlook.Application
-    
-    # Create item from template using absolute path
-    $msg = $outlook.CreateItemFromTemplate($AbsolutePath)
+    $msg = $outlook.CreateItemFromTemplate($ResolvedInput)
 
-    # Output formatted text for Git diff
-    Write-Output "Subject: $($msg.Subject)"
-    Write-Output "From:    $($msg.SenderEmailAddress)"
-    Write-Output "To:      $($msg.To)"
-    Write-Output "Sent:    $($msg.SentOn)"
-    Write-Output "--------------------------------------------------"
-    Write-Output $msg.Body
+    # Format email header & body into plain text
+    $content = @(
+        "Subject: $($msg.Subject)",
+        "From:    $($msg.SenderName) <$($msg.SenderEmailAddress)>",
+        "To:      $($msg.To)",
+        "CC:      $($msg.CC)",
+        "Date:    $($msg.SentOn)",
+        "--------------------------------------------------------------------------------",
+        "",
+        $msg.Body
+    ) -join "`r`n"
 
-    # Clean up COM references properly
+    # Save to file using UTF-8 encoding
+    [System.IO.File]::WriteAllText($OutputPath, $content, [System.Text.Encoding]::UTF8)
+
+    # Clean up Outlook COM objects
     $msg = $null
     $outlook.Quit()
     [System.Runtime.Interopservices.Marshal]::ReleaseComObject($outlook) | Out-Null
+    [System.GC]::Collect()
+
+    Write-Host "Successfully saved text file to: $OutputPath" -ForegroundColor Green
 }
 catch {
-    # Fail-safe message if Outlook cannot parse the file
-    Write-Output "Error opening .msg file: $_"
+    Write-Error "Failed to convert .msg file: $_"
+    exit 1
 }
