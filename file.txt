@@ -1,14 +1,29 @@
 param([string]$FilePath)
 
-# Open Outlook in background
-$outlook = New-Object -ComObject Outlook.Application
-$msg = $outlook.CreateItemFromTemplate($FilePath)
+try {
+    # Resolve relative paths to full absolute paths required by COM
+    $AbsolutePath = (Resolve-Path -Path $FilePath -ErrorAction Stop).Path
 
-# Output readable properties
-Write-Host "Subject: $($msg.Subject)"
-Write-Host "From: $($msg.SenderEmailAddress)"
-Write-Host "Sent: $($msg.SentOn)"
-Write-Host "--- Body ---"
-Write-Host $msg.Body
+    # Initialize Outlook COM Object
+    $outlook = New-Object -ComObject Outlook.Application
+    
+    # Create item from template using absolute path
+    $msg = $outlook.CreateItemFromTemplate($AbsolutePath)
 
-$outlook.Quit()
+    # Output formatted text for Git diff
+    Write-Output "Subject: $($msg.Subject)"
+    Write-Output "From:    $($msg.SenderEmailAddress)"
+    Write-Output "To:      $($msg.To)"
+    Write-Output "Sent:    $($msg.SentOn)"
+    Write-Output "--------------------------------------------------"
+    Write-Output $msg.Body
+
+    # Clean up COM references properly
+    $msg = $null
+    $outlook.Quit()
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($outlook) | Out-Null
+}
+catch {
+    # Fail-safe message if Outlook cannot parse the file
+    Write-Output "Error opening .msg file: $_"
+}
