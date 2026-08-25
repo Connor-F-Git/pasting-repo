@@ -1,3 +1,7 @@
-aud                                                appid                                scp        
----                                                -----                                ---        
-https://power-apis-usgov001-public.azure-apihub.us 38a893b6-d74c-4786-8fe7-bc3b4318e881 Runtime.All
+C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Create-Screenings-and-Trigger-Flow.ps1 : This script requires PowerShell 7+ (uses ForEach-Object 
+-Parallel). Current version: 5.1.26100.8875.
+At line:1 char:1
++ .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://org ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Create-Screenings-and-Trigger-Flow.ps1
