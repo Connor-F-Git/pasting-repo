@@ -59,12 +59,6 @@ if ($BatchSize -le 0) {
     exit 1
 }
 
-# ForEach-Object -Parallel (used to run each batch concurrently) requires PS7+.
-if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Error "This script requires PowerShell 7+ (uses ForEach-Object -Parallel). Current version: $($PSVersionTable.PSVersion)."
-    exit 1
-}
-
 if ($BatchSize -gt $Count) {
     $BatchSize = $Count
 }
@@ -217,6 +211,63 @@ for ($i = 0; $i -lt $indices.Count; $i += $BatchSize) {
     $batches.Add(@($indices[$i..([math]::Min($i + $BatchSize, $indices.Count) - 1)]))
 }
 
+# Runspace pools (not ForEach-Object -Parallel) so this also runs on Windows PowerShell 5.1.
+$workerScript = {
+    param($index, $accessToken, $createUri, $flowUrl, $flowAccessToken, $flowNumberValue, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
+
+    $firstName = "$firstNamePrefix$index"
+    $lastName = "$lastNamePrefix$index"
+
+    $body = $staticScreeningFields.Clone()
+    $body.cr9da_firstname = $firstName
+    $body.cr9da_lastname = $lastName
+    $body.cr9da_name = "$firstName $lastName"
+    $body.cr9da_candidateemail = "$($firstName.ToLower())@$emailDomain"
+
+    $result = [pscustomobject]@{
+        Index         = $index
+        ScreeningGuid = $null
+        CreateSuccess = $false
+        CreateError   = $null
+        FlowSuccess   = $false
+        FlowError     = $null
+    }
+
+    try {
+        $createResponse = Invoke-RestMethod `
+            -Method POST `
+            -Uri $createUri `
+            -Headers @{
+            Authorization      = "Bearer $accessToken"
+            Accept             = 'application/json'
+            'OData-MaxVersion' = '4.0'
+            'OData-Version'    = '4.0'
+            Prefer             = 'return=representation'
+        } `
+            -ContentType 'application/json' `
+            -Body ($body | ConvertTo-Json -Depth 5) `
+            -ErrorAction Stop
+
+        $result.ScreeningGuid = $createResponse.cr9da_fsn_screeningsid
+        $result.CreateSuccess = $true
+    }
+    catch {
+        $result.CreateError = $_.Exception.Message
+        return $result
+    }
+
+    try {
+        $flowBody = @{ text = $result.ScreeningGuid; number = $flowNumberValue } | ConvertTo-Json
+        Invoke-RestMethod -Method POST -Uri $flowUrl -Headers @{ Authorization = "Bearer $flowAccessToken" } -ContentType 'application/json' -Body $flowBody -ErrorAction Stop | Out-Null
+        $result.FlowSuccess = $true
+    }
+    catch {
+        $result.FlowError = $_.Exception.Message
+    }
+
+    return $result
+}
+
 $allResults = [System.Collections.Generic.List[object]]::new()
 $batchNum = 0
 
@@ -224,69 +275,26 @@ foreach ($batch in $batches) {
     $batchNum++
     Write-Host "Batch $batchNum of $($batches.Count) ($($batch.Count) screenings)..."
 
-    $batchResults = $batch | ForEach-Object -Parallel {
-        $index = $_
-        $accessToken = $using:accessToken
-        $createUri = $using:createUri
-        $flowUrl = $using:FlowUrl
-        $flowAccessToken = $using:flowAccessToken
-        $flowNumberValue = $using:FlowNumberValue
-        $firstNamePrefix = $using:CandidateFirstNamePrefix
-        $lastNamePrefix = $using:CandidateLastNamePrefix
-        $emailDomain = $using:CandidateEmailDomain
+    $runspacePool = [runspacefactory]::CreateRunspacePool(1, $BatchSize)
+    $runspacePool.Open()
 
-        $firstName = "$firstNamePrefix$index"
-        $lastName = "$lastNamePrefix$index"
-
-        $body = ($using:staticScreeningFields).Clone()
-        $body.cr9da_firstname = $firstName
-        $body.cr9da_lastname = $lastName
-        $body.cr9da_name = "$firstName $lastName"
-        $body.cr9da_candidateemail = "$($firstName.ToLower())@$emailDomain"
-
-        $result = [pscustomobject]@{
-            Index         = $index
-            ScreeningGuid = $null
-            CreateSuccess = $false
-            CreateError   = $null
-            FlowSuccess   = $false
-            FlowError     = $null
+    $jobs = foreach ($index in $batch) {
+        $ps = [powershell]::Create()
+        $ps.RunspacePool = $runspacePool
+        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($FlowUrl).AddArgument($flowAccessToken).AddArgument($FlowNumberValue).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
+        [pscustomobject]@{
+            PowerShell = $ps
+            Handle     = $ps.BeginInvoke()
         }
+    }
 
-        try {
-            $createResponse = Invoke-RestMethod `
-                -Method POST `
-                -Uri $createUri `
-                -Headers @{
-                Authorization      = "Bearer $accessToken"
-                Accept             = 'application/json'
-                'OData-MaxVersion' = '4.0'
-                'OData-Version'    = '4.0'
-                Prefer             = 'return=representation'
-            } `
-                -ContentType 'application/json' `
-                -Body ($body | ConvertTo-Json -Depth 5) `
-                -ErrorAction Stop
+    $batchResults = foreach ($job in $jobs) {
+        $job.PowerShell.EndInvoke($job.Handle)
+        $job.PowerShell.Dispose()
+    }
 
-            $result.ScreeningGuid = $createResponse.cr9da_fsn_screeningsid
-            $result.CreateSuccess = $true
-        }
-        catch {
-            $result.CreateError = $_.Exception.Message
-            return $result
-        }
-
-        try {
-            $flowBody = @{ text = $result.ScreeningGuid; number = $flowNumberValue } | ConvertTo-Json
-            Invoke-RestMethod -Method POST -Uri $flowUrl -Headers @{ Authorization = "Bearer $flowAccessToken" } -ContentType 'application/json' -Body $flowBody -ErrorAction Stop | Out-Null
-            $result.FlowSuccess = $true
-        }
-        catch {
-            $result.FlowError = $_.Exception.Message
-        }
-
-        return $result
-    } -ThrottleLimit $BatchSize
+    $runspacePool.Close()
+    $runspacePool.Dispose()
 
     $allResults.AddRange(@($batchResults))
 
