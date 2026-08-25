@@ -1,50 +1,177 @@
-param (
-    [Parameter(Mandatory=$true, Position=0)]
-    [string]$InputPath,
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="initiateScreenings_QA.har" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">3</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">p365fedscreenqa.crm9.dynamics.com</stringProp>
+          <stringProp name="HTTPSampler.port">443</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path"></stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">10000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">30000</stringProp>
+        </ConfigTestElement>
+        <hashTree/>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Headers" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">${__P(auth_token)}</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Accept</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">OData-MaxVersion</stringProp>
+              <stringProp name="Header.value">4.0</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">OData-Version</stringProp>
+              <stringProp name="Header.value">4.0</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
 
-    [Parameter(Mandatory=$false, Position=1)]
-    [string]$OutputPath
-)
-
-try {
-    # Resolve absolute path for Outlook COM
-    $ResolvedInput = (Resolve-Path -Path $InputPath -ErrorAction Stop).Path
-
-    # Default to saving as .txt with the same name in the same directory
-    if (-not $OutputPath) {
-        $OutputPath = [System.IO.Path]::ChangeExtension($ResolvedInput, ".txt")
-    } else {
-        $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
-    }
-
-    # Initialize Outlook COM
-    $outlook = New-Object -ComObject Outlook.Application
-    $msg = $outlook.CreateItemFromTemplate($ResolvedInput)
-
-    # Format email header & body into plain text
-    $content = @(
-        "Subject: $($msg.Subject)",
-        "From:    $($msg.SenderName) <$($msg.SenderEmailAddress)>",
-        "To:      $($msg.To)",
-        "CC:      $($msg.CC)",
-        "Date:    $($msg.SentOn)",
-        "--------------------------------------------------------------------------------",
-        "",
-        $msg.Body
-    ) -join "`r`n"
-
-    # Save to file using UTF-8 encoding
-    [System.IO.File]::WriteAllText($OutputPath, $content, [System.Text.Encoding]::UTF8)
-
-    # Clean up Outlook COM objects
-    $msg = $null
-    $outlook.Quit()
-    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($outlook) | Out-Null
-    [System.GC]::Collect()
-
-    Write-Host "Successfully saved text file to: $OutputPath" -ForegroundColor Green
-}
-catch {
-    Write-Error "Failed to convert .msg file: $_"
-    exit 1
-}
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST cr9da_fsn_screeningses" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                      <stringProp name="Argument.value">{&quot;cr9da_acknowledgebackground&quot;:&quot;Yes&quot;,&quot;cr9da_acknowledgeoffer&quot;:&quot;Yes&quot;,&quot;cr9da_acknowledgeotherdocs&quot;:&quot;Yes&quot;,&quot;cr9da_activeinactive&quot;:&quot;true&quot;,&quot;cr9da_businessline&quot;:&quot;National IT&quot;,&quot;cr9da_candidateemail&quot;:&quot;herman.melville@example.com&quot;,&quot;cr9da_creditcheck&quot;:&quot;false&quot;,&quot;cr9da_dmv&quot;:&quot;true&quot;,&quot;cr9da_drugscreening&quot;:&quot;true&quot;,&quot;cr9da_expedite&quot;:&quot;false&quot;,&quot;cr9da_fbifingerprinting&quot;:&quot;true&quot;,&quot;cr9da_firstname&quot;:&quot;Herman&quot;,&quot;cr9da_hiringmanagerdisplayname&quot;:&quot;Gutierrez-Ugarte, Katia&quot;,&quot;cr9da_hiringmanageremail&quot;:&quot;Katia.Gutierrez-Ugarte@phil.frb.org&quot;,&quot;cr9da_initiatordisplayname&quot;:&quot;Fedalen, Connor&quot;,&quot;cr9da_initiatoremail&quot;:&quot;Connor.Fedalen@phil.frb.org&quot;,&quot;cr9da_initiatorrole&quot;:&quot;Recruiter, &quot;,&quot;cr9da_lastname&quot;:&quot;Melville&quot;,&quot;cr9da_marijuana&quot;:&quot;true&quot;,&quot;cr9da_mediascreening&quot;:&quot;true&quot;,&quot;cr9da_middlename&quot;:&quot;&quot;,&quot;cr9da_name&quot;:&quot;Herman Melville&quot;,&quot;cr9da_otherscreeningreason&quot;:&quot;&quot;,&quot;cr9da_provisionalstart&quot;:&quot;false&quot;,&quot;cr9da_requestedbydisplayname&quot;:&quot;Fedalen, Connor&quot;,&quot;cr9da_requestedbyemail&quot;:&quot;Connor.Fedalen@phil.frb.org&quot;,&quot;cr9da_requestingdistrict&quot;:&quot;Philadelphia&quot;,&quot;cr9da_safrscreening&quot;:&quot;Tier II - Credit Check&quot;,&quot;cr9da_screeningreason&quot;:&quot;New Hire&quot;,&quot;cr9da_screeningstatus&quot;:&quot;Unassigned&quot;,&quot;cr9da_socialmedia&quot;:&quot;true&quot;,&quot;cr9da_startdate&quot;:&quot;2028-06-27T04:00:00.000Z&quot;,&quot;cr9da_submissiondate&quot;:&quot;2026-06-22T00:00:00&quot;,&quot;cr9da_submitterattestation&quot;:&quot;Yes, the requested screening matches the Workday requirements.&quot;,&quot;cr9da_submitterattestationcomments&quot;:&quot;&quot;,&quot;cr9da_treasury&quot;:&quot;false&quot;,&quot;cr9da_vendorscreeningpackages&quot;:&quot;Rescreen&quot;,&quot;cr9da_workdayposition&quot;:&quot;111111&quot;,&quot;cr9da_workertype&quot;:&quot;Employee&quot;}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/data/v9.0/cr9da_fsn_screeningses</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Per-Request Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Prefer</stringProp>
+                <stringProp name="Header.value">return=representation,odata.include-annotations=*</stringProp>
+              </elementProp>              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET cr9da_fsn_screeningses?%24orderby=cr9da_expedite+desc&amp;%24" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="Argument.value">{&quot;cr9da_acknowledgebackground&quot;:&quot;Yes&quot;,&quot;cr9da_acknowledgeoffer&quot;:&quot;Yes&quot;,&quot;cr9da_acknowledgeotherdocs&quot;:&quot;Yes&quot;,&quot;cr9da_activeinactive&quot;:&quot;true&quot;,&quot;cr9da_businessline&quot;:&quot;National IT&quot;,&quot;cr9da_candidateemail&quot;:&quot;brian.wilson@example.com&quot;,&quot;cr9da_creditcheck&quot;:&quot;false&quot;,&quot;cr9da_dmv&quot;:&quot;true&quot;,&quot;cr9da_drugscreening&quot;:&quot;true&quot;,&quot;cr9da_expedite&quot;:&quot;false&quot;,&quot;cr9da_fbifingerprinting&quot;:&quot;true&quot;,&quot;cr9da_firstname&quot;:&quot;Brian&quot;,&quot;cr9da_hiringmanagerdisplayname&quot;:&quot;Gutierrez-Ugarte, Katia&quot;,&quot;cr9da_hiringmanageremail&quot;:&quot;Katia.Gutierrez-Ugarte@phil.frb.org&quot;,&quot;cr9da_initiatordisplayname&quot;:&quot;Fedalen, Connor&quot;,&quot;cr9da_initiatoremail&quot;:&quot;Connor.Fedalen@phil.frb.org&quot;,&quot;cr9da_initiatorrole&quot;:&quot;Recruiter, &quot;,&quot;cr9da_lastname&quot;:&quot;Wilson&quot;,&quot;cr9da_marijuana&quot;:&quot;true&quot;,&quot;cr9da_mediascreening&quot;:&quot;true&quot;,&quot;cr9da_middlename&quot;:&quot;&quot;,&quot;cr9da_name&quot;:&quot;Brian Wilson&quot;,&quot;cr9da_otherscreeningreason&quot;:&quot;&quot;,&quot;cr9da_provisionalstart&quot;:&quot;false&quot;,&quot;cr9da_requestedbydisplayname&quot;:&quot;Fedalen, Connor&quot;,&quot;cr9da_requestedbyemail&quot;:&quot;Connor.Fedalen@phil.frb.org&quot;,&quot;cr9da_requestingdistrict&quot;:&quot;Philadelphia&quot;,&quot;cr9da_safrscreening&quot;:&quot;Tier II - Credit Check&quot;,&quot;cr9da_screeningreason&quot;:&quot;New Hire&quot;,&quot;cr9da_screeningstatus&quot;:&quot;Unassigned&quot;,&quot;cr9da_socialmedia&quot;:&quot;true&quot;,&quot;cr9da_startdate&quot;:&quot;2028-06-27T04:00:00.000Z&quot;,&quot;cr9da_submissiondate&quot;:&quot;2026-06-22T00:00:00&quot;,&quot;cr9da_submitterattestation&quot;:&quot;Yes, the requested screening matches the Workday requirements.&quot;,&quot;cr9da_submitterattestationcomments&quot;:&quot;&quot;,&quot;cr9da_treasury&quot;:&quot;false&quot;,&quot;cr9da_vendorscreeningpackages&quot;:&quot;Rescreen&quot;,&quot;cr9da_workdayposition&quot;:&quot;111111&quot;,&quot;cr9da_workertype&quot;:&quot;Employee&quot;}</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Per-Request Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Prefer</stringProp>
+                <stringProp name="Header.value">odata.maxpagesize=2000,odata.include-annotations=*</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET cr9da_fsn_screeningses?%24filter=cr9da_fsn_screeningsid+eq+850e352f-396e-f111-ab0c-001dd8050f2c&amp;%24" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/data/v9.0/cr9da_fsn_screeningses?%24filter=cr9da_fsn_screeningsid+eq+850e352f-396e-f111-ab0c-001dd8050f2c&amp;%24select=cap_lastescalationdate%2Ccr9da_assignedtodisplayname%2Ccr9da_assignedtoemail%2Ccr9da_businessline%2Ccr9da_candidateemail%2Ccr9da_citizenship%2Ccr9da_creditcheck%2Ccr9da_datesenttoadjudicator%2Ccr9da_datesummarycomplete%2Ccr9da_datevendoremailsent%2Ccr9da_dmv%2Ccr9da_drugscreening%2Ccr9da_employeeid%2Ccr9da_employeestartdate%2Ccr9da_enhancedbackgroundscreening%2Ccr9da_expedite%2Ccr9da_fbifingerprinting%2Ccr9da_fingerprintlocation%2Ccr9da_firstname%2Ccr9da_fsn_screeningsid%2Ccr9da_hiringmanagerdisplayname%2Ccr9da_hiringmanageremail%2Ccr9da_lastname%2Ccr9da_marijuana%2Ccr9da_mediascreening%2Ccr9da_middlename%2Ccr9da_notes%2Ccr9da_pdqidentifier%2Ccr9da_provisionalstart%2Ccr9da_readyforhire%2Ccr9da_requestedbydisplayname%2Ccr9da_requestedbyemail%2Ccr9da_requestingdistrict%2Ccr9da_safrscreening%2Ccr9da_screeningreason%2Ccr9da_screeningstatus%2Ccr9da_socialmedia%2Ccr9da_spattestation%2Ccr9da_startdate%2Ccr9da_submissiondate%2Ccr9da_treasury%2Ccr9da_vendorscreeningpackages%2Ccr9da_workdayposition%2Ccr9da_workdayrecordupdated%2Ccr9da_workertype&amp;%24top=1&amp;%24count=true</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Per-Request Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Prefer</stringProp>
+                <stringProp name="Header.value">odata.maxpagesize=1,odata.include-annotations=*</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
