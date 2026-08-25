@@ -1,10 +1,10 @@
 # Creates N screenings in Dynamics, then uses each screening's GUID to trigger a
-# Power Automate flow (GUID passed as a query string parameter on -FlowUrl).
+# Power Automate flow via the run-only apihub trigger endpoint (JSON body: {text, number}).
 #
 # Example usage:
 # .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `
 #     -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" `
-#     -FlowUrl "https://prod-00.westus.logic.azure.com/workflows/.../triggers/manual/paths/invoke?api-version=2016-06-01&sp=...&sv=...&sig=..." `
+#     -FlowUrl "https://power-apis-usgov001-public.azure-apihub.us/apim/logicflows/<flow-guid>/triggers/manual/run?api-version=2016-11-01" `
 #     -Count 1000 -BatchSize 100
 
 param(
@@ -17,12 +17,12 @@ param(
     [Parameter(Mandatory)]
     [string]$ClientId,
 
-    # Power Automate HTTP trigger URL, including its SAS query string (sp/sv/sig).
-    # Pass this in at runtime - do not hardcode/commit it, it grants access to the flow.
+    # Power Automate run-only apihub trigger URL (from DevTools, not the flow details page link).
     [Parameter(Mandatory)]
     [string]$FlowUrl,
 
-    [string]$FlowGuidParamName = 'screeningId',
+    # Second field the trigger's JSON body expects alongside the screening GUID ({"text":<guid>,"number":FlowNumberValue}).
+    [int]$FlowNumberValue = -1,
 
     [string]$EntityPath = 'cr9da_fsn_screeningses',
 
@@ -159,6 +159,50 @@ while ($null -eq $accessToken) {
 
 Write-Host 'Authenticated successfully.'
 
+# The apihub trigger endpoint is a different resource than Dynamics, so it needs its own token
+# (audience = the apihub host itself, discovered from a captured browser request).
+$flowScope = ([System.Uri]$FlowUrl).GetLeftPart([System.UriPartial]::Authority) + '/.default'
+
+$flowDeviceResponse = Invoke-RestMethod `
+    -Method POST `
+    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
+    -Body @{ client_id = $ClientId; scope = $flowScope } `
+    -ContentType 'application/x-www-form-urlencoded'
+
+Write-Host $flowDeviceResponse.message
+Write-Host ''
+
+$flowTokenBody = @{
+    grant_type  = 'urn:ietf:params:oauth:grant-type:device_code'
+    client_id   = $ClientId
+    device_code = $flowDeviceResponse.device_code
+}
+
+$flowAccessToken = $null
+$flowInterval = [int]$flowDeviceResponse.interval
+while ($null -eq $flowAccessToken) {
+    Start-Sleep -Seconds $flowInterval
+    try {
+        $flowTokenResponse = Invoke-RestMethod `
+            -Method POST `
+            -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+            -Body $flowTokenBody `
+            -ContentType 'application/x-www-form-urlencoded' `
+            -ErrorAction Stop
+        $flowAccessToken = $flowTokenResponse.access_token
+    }
+    catch {
+        $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
+        if ($err -eq 'authorization_pending') { continue }
+        elseif ($err -eq 'slow_down') { $flowInterval += 5; continue }
+        elseif ($err -eq 'authorization_declined') { Write-Error 'Login was declined.'; exit 1 }
+        elseif ($err -eq 'expired_token') { Write-Error 'Device code expired.'; exit 1 }
+        else { Write-Error $_; exit 1 }
+    }
+}
+
+Write-Host 'Authenticated for flow trigger successfully.'
+
 # Create screenings and trigger the flow, in batches
 
 $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
@@ -185,7 +229,8 @@ foreach ($batch in $batches) {
         $accessToken = $using:accessToken
         $createUri = $using:createUri
         $flowUrl = $using:FlowUrl
-        $flowGuidParamName = $using:FlowGuidParamName
+        $flowAccessToken = $using:flowAccessToken
+        $flowNumberValue = $using:FlowNumberValue
         $firstNamePrefix = $using:CandidateFirstNamePrefix
         $lastNamePrefix = $using:CandidateLastNamePrefix
         $emailDomain = $using:CandidateEmailDomain
@@ -232,9 +277,8 @@ foreach ($batch in $batches) {
         }
 
         try {
-            $separator = if ($flowUrl -match '\?') { '&' } else { '?' }
-            $flowUri = "$flowUrl$separator$flowGuidParamName=$($result.ScreeningGuid)"
-            Invoke-RestMethod -Method POST -Uri $flowUri -Headers @{ Authorization = "Bearer $accessToken" } -ErrorAction Stop | Out-Null
+            $flowBody = @{ text = $result.ScreeningGuid; number = $flowNumberValue } | ConvertTo-Json
+            Invoke-RestMethod -Method POST -Uri $flowUrl -Headers @{ Authorization = "Bearer $flowAccessToken" } -ContentType 'application/json' -Body $flowBody -ErrorAction Stop | Out-Null
             $result.FlowSuccess = $true
         }
         catch {
