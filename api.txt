@@ -1,3 +1,1 @@
-https://power-apis-usgov001-public.azure-apihub.us/apim/logicflows/6AFDABE11822FBE8584395B0F488EF50-16A8771901C492B0/triggers/manual/run?api-version=2016-11-01
-
-https://tb.events.data.microsoft.com/OneCollector/1.0/?cors=true&content-type=application/x-json-stream&ext.intweb.msfpc=GUID%3D8dd3f9c2450742dba6b57899e9f56395%26HASH%3D8dd3%26LV%3D202409%26V%3D4%26LU%3D1726492392629&w=0
+.\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" -TenantId "00000000-0000-0000-0000-000000000000" -ClientId "11111111-1111-1111-1111-111111111111" -FlowUrl "https://power-apis-usgov001-public.azure-apihub.us/apim/logicflows/6AFDABE11822FBE8584395B0F488EF50-16A8771901C492B0/triggers/manual/run?api-version=2016-11-01" -Count 1000 -BatchSize 100
