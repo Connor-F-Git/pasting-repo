@@ -116,7 +116,7 @@ $scope = $EnvironmentUrl.TrimEnd('/') + '/.default'
 $deviceResponse = Invoke-RestMethod `
     -Method POST `
     -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
-    -Body @{ client_id = $ClientId; scope = $scope } `
+    -Body @{ client_id = $ClientId; scope = "$scope offline_access" } `
     -ContentType 'application/x-www-form-urlencoded'
 
 Write-Host $deviceResponse.message
@@ -129,6 +129,7 @@ $tokenBody = @{
 }
 
 $accessToken = $null
+$refreshToken = $null
 $interval = [int]$deviceResponse.interval
 while ($null -eq $accessToken) {
     Start-Sleep -Seconds $interval
@@ -140,6 +141,7 @@ while ($null -eq $accessToken) {
             -ContentType 'application/x-www-form-urlencoded' `
             -ErrorAction Stop
         $accessToken = $tokenResponse.access_token
+        $refreshToken = $tokenResponse.refresh_token
     }
     catch {
         $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
@@ -154,48 +156,32 @@ while ($null -eq $accessToken) {
 Write-Host 'Authenticated successfully.'
 
 # The apihub trigger endpoint is a different resource than Dynamics, so it needs its own token
-# (audience = the apihub host itself, discovered from a captured browser request).
+# (audience = the apihub host itself, discovered from a captured browser request). Reuse the
+# refresh token from the first login instead of prompting for a second interactive sign-in.
 $flowScope = ([System.Uri]$FlowUrl).GetLeftPart([System.UriPartial]::Authority) + '/.default'
 
-$flowDeviceResponse = Invoke-RestMethod `
-    -Method POST `
-    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
-    -Body @{ client_id = $ClientId; scope = $flowScope } `
-    -ContentType 'application/x-www-form-urlencoded'
-
-Write-Host $flowDeviceResponse.message
-Write-Host ''
+if (-not $refreshToken) {
+    Write-Error 'No refresh token was returned from the first sign-in, so a token for the flow endpoint cannot be obtained silently.'
+    exit 1
+}
 
 $flowTokenBody = @{
-    grant_type  = 'urn:ietf:params:oauth:grant-type:device_code'
-    client_id   = $ClientId
-    device_code = $flowDeviceResponse.device_code
+    grant_type    = 'refresh_token'
+    client_id     = $ClientId
+    refresh_token = $refreshToken
+    scope         = $flowScope
 }
 
-$flowAccessToken = $null
-$flowInterval = [int]$flowDeviceResponse.interval
-while ($null -eq $flowAccessToken) {
-    Start-Sleep -Seconds $flowInterval
-    try {
-        $flowTokenResponse = Invoke-RestMethod `
-            -Method POST `
-            -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-            -Body $flowTokenBody `
-            -ContentType 'application/x-www-form-urlencoded' `
-            -ErrorAction Stop
-        $flowAccessToken = $flowTokenResponse.access_token
-    }
-    catch {
-        $err = ($_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue).error
-        if ($err -eq 'authorization_pending') { continue }
-        elseif ($err -eq 'slow_down') { $flowInterval += 5; continue }
-        elseif ($err -eq 'authorization_declined') { Write-Error 'Login was declined.'; exit 1 }
-        elseif ($err -eq 'expired_token') { Write-Error 'Device code expired.'; exit 1 }
-        else { Write-Error $_; exit 1 }
-    }
-}
+$flowTokenResponse = Invoke-RestMethod `
+    -Method POST `
+    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+    -Body $flowTokenBody `
+    -ContentType 'application/x-www-form-urlencoded' `
+    -ErrorAction Stop
 
-Write-Host 'Authenticated for flow trigger successfully.'
+$flowAccessToken = $flowTokenResponse.access_token
+
+Write-Host 'Obtained flow trigger token silently via refresh token.'
 
 # Create screenings and trigger the flow, in batches
 
