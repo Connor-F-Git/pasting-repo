@@ -1,6 +1,10 @@
 # Creates N screenings in Dynamics, then adds a row per screening to the
 # TriggerCopyDataverseItemToSharePoint SharePoint list.
 #
+# Requires: Install-Module PnP.PowerShell -RequiredVersion 1.12.0 -Scope CurrentUser
+# (1.12.0 specifically - newer PnP.PowerShell versions need PowerShell 7+, this needs to
+# run on Windows PowerShell 5.1).
+#
 # Example usage:
 # .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `
 #     -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" `
@@ -154,76 +158,12 @@ while ($null -eq $accessToken) {
 
 Write-Host 'Authenticated successfully.'
 
-# SharePoint list writes go through Microsoft Graph (the legacy _api/ACS auth path is being
-# retired tenant by tenant), so this needs its own token. Reuse the refresh token from the
-# first login instead of prompting for a second interactive sign-in.
-if (-not $refreshToken) {
-    Write-Error 'No refresh token was returned from the first sign-in, so a token for Graph cannot be obtained silently.'
-    exit 1
-}
+# SharePoint auth is separate: cookie-based web login as the signed-in user, not tied to
+# this app registration's Graph/API permissions (avoids needing tenant admin consent).
+Import-Module -Name PnP.PowerShell -RequiredVersion 1.12.0 -ErrorAction Stop
+$sharePointConnection = Connect-PnPOnline -Url $SharePointSiteUrl -UseWebLogin -ReturnConnection
 
-$graphTokenBody = @{
-    grant_type    = 'refresh_token'
-    client_id     = $ClientId
-    refresh_token = $refreshToken
-    scope         = 'https://graph.microsoft.com/.default'
-}
-
-$graphTokenResponse = Invoke-RestMethod `
-    -Method POST `
-    -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-    -Body $graphTokenBody `
-    -ContentType 'application/x-www-form-urlencoded' `
-    -ErrorAction Stop
-
-$graphAccessToken = $graphTokenResponse.access_token
-
-Write-Host 'Obtained Graph token silently via refresh token.'
-
-# Print the token's granted scopes so a missing Sites.* permission shows up immediately
-# instead of manifesting later as a mysterious empty/zero-result list lookup.
-$graphTokenParts = $graphAccessToken.Split('.')
-$graphTokenPayload = $graphTokenParts[1].Replace('-', '+').Replace('_', '/')
-switch ($graphTokenPayload.Length % 4) { 2 { $graphTokenPayload += '==' } 3 { $graphTokenPayload += '=' } }
-$graphClaims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($graphTokenPayload)) | ConvertFrom-Json
-Write-Host "Graph token scopes: $($graphClaims.scp)"
-
-# Resolve the site and list once up front via Graph's site-by-path lookup, then match the
-# list client-side (case-insensitively, against both url name and display Title) since
-# OData $filter on displayName is case-sensitive and can differ from the list's url name.
-$siteUri = [System.Uri]$SharePointSiteUrl
-$sitePath = $siteUri.AbsolutePath.Trim('/')
-try {
-    $site = Invoke-RestMethod `
-        -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/sites/$($siteUri.Host):/$($sitePath)" `
-        -Headers @{ Authorization = "Bearer $graphAccessToken" } `
-        -ErrorAction Stop
-
-    Write-Host "Resolved site: $($site.webUrl) [id=$($site.id)]"
-
-    $lists = Invoke-RestMethod `
-        -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists?`$select=id,name,displayName&`$top=999" `
-        -Headers @{ Authorization = "Bearer $graphAccessToken" } `
-        -ErrorAction Stop
-
-    Write-Host "Graph returned $($lists.value.Count) list(s) for this site."
-
-    $matchedList = $lists.value | Where-Object { $_.name -eq $SharePointListName -or $_.displayName -eq $SharePointListName }
-
-    if (-not $matchedList) {
-        $available = ($lists.value | ForEach-Object { "$($_.name) (displayName: $($_.displayName))" }) -join "`n  "
-        Write-Error "List '$SharePointListName' was not found on site '$SharePointSiteUrl'. Available lists:`n  $available"
-        exit 1
-    }
-}
-catch {
-    Write-Error "Failed to look up the SharePoint site/list via Graph: $($_.Exception.Message)"
-    exit 1
-}
-
-$sharePointListItemsUri = "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists/$($matchedList.id)/items"
+Write-Host 'Authenticated to SharePoint successfully.'
 
 # Create screenings and add a row per screening to the SharePoint list, in batches
 
@@ -241,7 +181,9 @@ for ($i = 0; $i -lt $indices.Count; $i += $BatchSize) {
 
 # Runspace pools (not ForEach-Object -Parallel) so this also runs on Windows PowerShell 5.1.
 $workerScript = {
-    param($index, $accessToken, $createUri, $sharePointListItemsUri, $graphAccessToken, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
+    param($index, $accessToken, $createUri, $sharePointConnection, $sharePointListName, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
+
+    Import-Module -Name PnP.PowerShell -RequiredVersion 1.12.0 -ErrorAction Stop
 
     $firstName = "$firstNamePrefix$index"
     $lastName = "$lastNamePrefix$index"
@@ -285,20 +227,14 @@ $workerScript = {
     }
 
     try {
-        $spBody = @{
-            fields = @{
-                Title            = "$lastName, $firstName"
-                FSN_ScreeningID  = $result.ScreeningGuid
-                SumRptTemplateID = $sumRptTemplateId
-            }
-        } | ConvertTo-Json -Depth 5
-
-        Invoke-RestMethod `
-            -Method POST `
-            -Uri $sharePointListItemsUri `
-            -Headers @{ Authorization = "Bearer $graphAccessToken" } `
-            -ContentType 'application/json' `
-            -Body $spBody `
+        Add-PnPListItem `
+            -List $sharePointListName `
+            -Values @{
+            Title            = "$lastName, $firstName"
+            FSN_ScreeningID  = $result.ScreeningGuid
+            SumRptTemplateID = $sumRptTemplateId
+        } `
+            -Connection $sharePointConnection `
             -ErrorAction Stop | Out-Null
         $result.SharePointSuccess = $true
     }
@@ -322,7 +258,7 @@ foreach ($batch in $batches) {
     $jobs = foreach ($index in $batch) {
         $ps = [powershell]::Create()
         $ps.RunspacePool = $runspacePool
-        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($sharePointListItemsUri).AddArgument($graphAccessToken).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
+        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($sharePointConnection).AddArgument($SharePointListName).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
         [pscustomobject]@{
             PowerShell = $ps
             Handle     = $ps.BeginInvoke()
