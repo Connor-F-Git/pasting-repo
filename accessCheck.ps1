@@ -1,21 +1,20 @@
-# 1. Install module (run once if not already installed)
-# Install-Module -Name PnP.PowerShell -Scope CurrentUser
+# 1. Ensure PnP 1.12.0 is loaded
+Import-Module -Name PnP.PowerShell -RequiredVersion 1.12.0
 
-# 2. Connect to the subsite (launches a browser prompt for authentication)
-$siteUrl = "https://YOUR_TENANT.sharepoint.com/sites/SYS-FDR/STAGE"
-Connect-PnPOnline -Url $siteUrl -Interactive
-
-# 3. Target the list and set item values
+$siteUrl  = "https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE"
 $listName = "TriggerCopyDataverseItemToSharePoint"
 
+# 2. Connect using browser cookie auth (bypasses App Registration)
+Connect-PnPOnline -Url $siteUrl -UseWebLogin
+
+# 3. Add the item
 $itemValues = @{
-    "Title" = "Test Item via PnP"
+    "Title" = "Test Item via WebLogin"
 }
 
-# 4. Create the item
 try {
     $newItem = Add-PnPListItem -List $listName -Values $itemValues
-    Write-Host "Success! Created item with ID: $($newItem.Id)" -ForegroundColor Green
+    Write-Host "Success! Created item ID: $($newItem.Id)" -ForegroundColor Green
 } catch {
-    Write-Host "Error creating item: $_" -ForegroundColor Red
+    Write-Host "Failed to add item: $_" -ForegroundColor Red
 }
