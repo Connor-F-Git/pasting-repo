@@ -1,9 +1,1 @@
-Invoke-RestMethod : {"error":"invalid_request","error_description":"AADSTS50059: No tenant-identifying information found in either the request or implied by any      
-provided credentials. Trace ID: f9dd485c-516d-436c-8d26-d76af8da1b00 Correlation ID: a799478e-2f69-4bfd-80ca-81f2db905401 Timestamp: 2026-08-28 
-18:31:27Z","error_codes":[50059],"timestamp":"2026-08-28 
-18:31:27Z","trace_id":"f9dd485c-516d-436c-8d26-d76af8da1b00","correlation_id":"a799478e-2f69-4bfd-80ca-81f2db905401"}
-At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\accessCheck.ps1:11 char:22
-+ ... deRequest = Invoke-RestMethod -Method Post -Uri "https://login.micros ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
-    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+https://frbprod1.sharepoint.com/_layouts/15/BrowserSupport.aspx?Source=https%3A%2F%2Ffrbprod1%2Esharepoint%2Ecom%2F%5Flayouts%2F15%2FAccessDenied%2Easpx%3FSource%3Dhttps%253A%252F%252Ffrbprod1%252Esharepoint%252Ecom%252F%255Flayouts%252F15%252Fsettings%252Easpx%26correlation%3D3fc035a2%252Da08d%252Df000%252D2a63%252D3b132d71c292%26Type%3Dweb%26SiteId%3Db4f93ca6%252D17d7%252D4571%252Da9d2%252Da163256ef530
