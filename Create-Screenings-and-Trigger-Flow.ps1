@@ -180,6 +180,14 @@ $graphAccessToken = $graphTokenResponse.access_token
 
 Write-Host 'Obtained Graph token silently via refresh token.'
 
+# Print the token's granted scopes so a missing Sites.* permission shows up immediately
+# instead of manifesting later as a mysterious empty/zero-result list lookup.
+$graphTokenParts = $graphAccessToken.Split('.')
+$graphTokenPayload = $graphTokenParts[1].Replace('-', '+').Replace('_', '/')
+switch ($graphTokenPayload.Length % 4) { 2 { $graphTokenPayload += '==' } 3 { $graphTokenPayload += '=' } }
+$graphClaims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($graphTokenPayload)) | ConvertFrom-Json
+Write-Host "Graph token scopes: $($graphClaims.scp)"
+
 # Resolve the site and list once up front via Graph's site-by-path lookup, then match the
 # list client-side (case-insensitively, against both url name and display Title) since
 # OData $filter on displayName is case-sensitive and can differ from the list's url name.
