@@ -1,14 +1,15 @@
-# 1. CONFIGURATION (Set your site and list paths)
+# 1. CONFIGURATION
 $siteUrl = "https://yourtenant.sharepoint.com/sites/SYS-FDR/STAGE"
 $listUrl = "/sites/SYS-FDR/STAGE/Lists/TriggerCopyDataverseItemToSharePoint"
 
-# Automatically extract host and build scope
-$siteHost = ([System.Uri]$siteUrl).Host
-$clientId = "31359c7f-bd7e-475c-86b6-3e148d28200e" # PnP App ID
-$scope    = "https://$siteHost/.default"
+# Automatically extract host (e.g., 'yourtenant.sharepoint.com') for tenant endpoint and scope
+$tenantHost = ([System.Uri]$siteUrl).Host
+$clientId   = "31359c7f-bd7e-475c-86b6-3e148d28200e" # PnP App ID
+$scope      = "https://$tenantHost/.default"
 
-# 2. REQUEST DEVICE CODE (/organizations endpoint eliminates tenant domain requirement)
-$deviceCodeRequest = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/organizations/oauth2/v2.0/devicecode" -Body @{
+# 2. REQUEST DEVICE CODE
+# Using $tenantHost in the URL satisfies Azure AD's tenant requirement automatically
+$deviceCodeRequest = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantHost/oauth2/v2.0/devicecode" -Body @{
     client_id = $clientId
     scope     = $scope
 }
@@ -22,7 +23,7 @@ $token = $null
 while ($null -eq $token) {
     Start-Sleep -Seconds 5
     try {
-        $tokenRequest = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/organizations/oauth2/v2.0/token" -Body @{
+        $tokenRequest = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantHost/oauth2/v2.0/token" -Body @{
             grant_type  = "urn:ietf:params:oauth:grant-type:device_code"
             client_id   = $clientId
             device_code = $deviceCodeRequest.device_code
@@ -30,7 +31,7 @@ while ($null -eq $token) {
         $token = $tokenRequest.access_token
         Write-Host "Authenticated successfully!" -ForegroundColor Green
     } catch {
-        # Loops silently until browser login completes
+        # Loop continues until browser login is completed
     }
 }
 
