@@ -1,7 +1,11 @@
-C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Create-Screenings-and-Trigger-Flow.ps1 : This script requires PowerShell 7+ (uses ForEach-Object 
--Parallel). Current version: 5.1.26100.8875.
-At line:1 char:1
-+ .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://org ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
-    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Create-Screenings-and-Trigger-Flow.ps1
+PS C:\Users\C1CXF05\Documents\JMeter_Auth_Automation> .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://orgab3a5422.crm9.dynamics.com" -TenantId "b397c653-5b19-463f-b9fc-af658ded9128" -ClientId "1950a258-227b-4e31-a9cf-717495945fc2" -Count 10 -BatchSize 1
+To sign in, use a web browser to open the page https://login.microsoft.com/device and enter the code ARBV4N6LQ to authenticate.
+
+Authenticated successfully.
+Obtained SharePoint token silently via refresh token.
+Invoke-RestMethod : {"error":"invalid_request"}
+At C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Create-Screenings-and-Trigger-Flow.ps1:186 char:13
++ $listMeta = Invoke-RestMethod `
++             ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebException
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
