@@ -180,7 +180,9 @@ $graphAccessToken = $graphTokenResponse.access_token
 
 Write-Host 'Obtained Graph token silently via refresh token.'
 
-# Resolve the site and list once up front via Graph's site-by-path and list-by-name lookups.
+# Resolve the site and list once up front via Graph's site-by-path lookup, then match the
+# list client-side (case-insensitively, against both url name and display Title) since
+# OData $filter on displayName is case-sensitive and can differ from the list's url name.
 $siteUri = [System.Uri]$SharePointSiteUrl
 $sitePath = $siteUri.AbsolutePath.Trim('/')
 try {
@@ -190,14 +192,17 @@ try {
         -Headers @{ Authorization = "Bearer $graphAccessToken" } `
         -ErrorAction Stop
 
-    $list = Invoke-RestMethod `
+    $lists = Invoke-RestMethod `
         -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists?`$filter=displayName eq '$SharePointListName'" `
+        -Uri "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists?`$select=id,name,displayName&`$top=999" `
         -Headers @{ Authorization = "Bearer $graphAccessToken" } `
         -ErrorAction Stop
 
-    if (-not $list.value -or $list.value.Count -eq 0) {
-        Write-Error "List '$SharePointListName' was not found on site '$SharePointSiteUrl'."
+    $matchedList = $lists.value | Where-Object { $_.name -eq $SharePointListName -or $_.displayName -eq $SharePointListName }
+
+    if (-not $matchedList) {
+        $available = ($lists.value | ForEach-Object { "$($_.name) (displayName: $($_.displayName))" }) -join "`n  "
+        Write-Error "List '$SharePointListName' was not found on site '$SharePointSiteUrl'. Available lists:`n  $available"
         exit 1
     }
 }
@@ -206,7 +211,7 @@ catch {
     exit 1
 }
 
-$sharePointListItemsUri = "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists/$($list.value[0].id)/items"
+$sharePointListItemsUri = "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists/$($matchedList.id)/items"
 
 # Create screenings and add a row per screening to the SharePoint list, in batches
 
