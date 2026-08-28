@@ -194,6 +194,15 @@ catch {
     Write-Error "Failed to look up the SharePoint list: $($_.Exception.Message)"
     $wwwAuth = $_.Exception.Response.Headers['WWW-Authenticate']
     if ($wwwAuth) { Write-Host "WWW-Authenticate: $wwwAuth" }
+
+    # Decode the token claims here (instead of asking for a separate command) since
+    # $sharePointAccessToken doesn't survive past this script exiting.
+    $tokenParts = $sharePointAccessToken.Split('.')
+    $tokenPayload = $tokenParts[1].Replace('-', '+').Replace('_', '/')
+    switch ($tokenPayload.Length % 4) { 2 { $tokenPayload += '==' } 3 { $tokenPayload += '=' } }
+    $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($tokenPayload)) | ConvertFrom-Json
+    Write-Host "SharePoint token claims: aud=$($claims.aud) appid=$($claims.appid) scp=$($claims.scp) roles=$($claims.roles)"
+
     exit 1
 }
 $sharePointListItemEntityType = $listMeta.d.ListItemEntityTypeFullName
