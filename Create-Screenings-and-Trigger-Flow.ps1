@@ -183,11 +183,19 @@ Write-Host 'Obtained SharePoint token silently via refresh token.'
 
 # The list item __metadata type name is specific to this list, so look it up once up front.
 $sharePointListItemsUri = "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')/items"
-$listMeta = Invoke-RestMethod `
-    -Method GET `
-    -Uri "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')?`$select=ListItemEntityTypeFullName" `
-    -Headers @{ Authorization = "Bearer $sharePointAccessToken"; Accept = 'application/json;odata=verbose' } `
-    -ErrorAction Stop
+try {
+    $listMeta = Invoke-RestMethod `
+        -Method GET `
+        -Uri "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')?`$select=ListItemEntityTypeFullName" `
+        -Headers @{ Authorization = "Bearer $sharePointAccessToken"; Accept = 'application/json;odata=verbose' } `
+        -ErrorAction Stop
+}
+catch {
+    Write-Error "Failed to look up the SharePoint list: $($_.Exception.Message)"
+    $wwwAuth = $_.Exception.Response.Headers['WWW-Authenticate']
+    if ($wwwAuth) { Write-Host "WWW-Authenticate: $wwwAuth" }
+    exit 1
+}
 $sharePointListItemEntityType = $listMeta.d.ListItemEntityTypeFullName
 
 # Create screenings and add a row per screening to the SharePoint list, in batches
