@@ -160,13 +160,13 @@ Write-Host 'Authenticated successfully.'
 
 # SharePoint auth is separate: cookie-based web login as the signed-in user, not tied to
 # this app registration's Graph/API permissions (avoids needing tenant admin consent).
+# Each runspace creates its own SharePoint connection so items in the same batch can run concurrently
+# without sharing one CSOM client context across threads.
 Import-Module -Name PnP.PowerShell -RequiredVersion 1.12.0 -ErrorAction Stop
-$sharePointConnection = Connect-PnPOnline -Url $SharePointSiteUrl -UseWebLogin -ReturnConnection
+Write-Host 'SharePoint auth will be opened inside each worker for concurrent batch execution.'
 
-Write-Host 'Authenticated to SharePoint successfully.'
-
-# Create screenings and add a row per screening to the SharePoint list, in batches
-
+# Create screenings in batches; each item creates its Dynamics record and adds its SharePoint row
+# inside the same worker so all items in a batch run concurrently without deadlocking.
 $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
 $runDir = Join-Path $ResultsDir $timestamp
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
@@ -181,7 +181,7 @@ for ($i = 0; $i -lt $indices.Count; $i += $BatchSize) {
 
 # Runspace pools (not ForEach-Object -Parallel) so this also runs on Windows PowerShell 5.1.
 $workerScript = {
-    param($index, $accessToken, $createUri, $sharePointConnection, $sharePointListName, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
+    param($index, $accessToken, $createUri, $sharePointSiteUrl, $sharePointListName, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
 
     Import-Module -Name PnP.PowerShell -RequiredVersion 1.12.0 -ErrorAction Stop
 
@@ -196,6 +196,8 @@ $workerScript = {
 
     $result = [pscustomobject]@{
         Index             = $index
+        FirstName         = $firstName
+        LastName          = $lastName
         ScreeningGuid     = $null
         CreateSuccess     = $false
         CreateError       = $null
@@ -227,6 +229,7 @@ $workerScript = {
     }
 
     try {
+        $sharePointConnection = Connect-PnPOnline -Url $sharePointSiteUrl -UseWebLogin -ReturnConnection -WarningAction SilentlyContinue
         Add-PnPListItem `
             -List $sharePointListName `
             -Values @{
@@ -237,6 +240,7 @@ $workerScript = {
             -Connection $sharePointConnection `
             -ErrorAction Stop | Out-Null
         $result.SharePointSuccess = $true
+        Disconnect-PnPOnline -Connection $sharePointConnection -ErrorAction SilentlyContinue
     }
     catch {
         $result.SharePointError = $_.Exception.Message
@@ -258,7 +262,7 @@ foreach ($batch in $batches) {
     $jobs = foreach ($index in $batch) {
         $ps = [powershell]::Create()
         $ps.RunspacePool = $runspacePool
-        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($sharePointConnection).AddArgument($SharePointListName).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
+        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($SharePointSiteUrl).AddArgument($SharePointListName).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
         [pscustomobject]@{
             PowerShell = $ps
             Handle     = $ps.BeginInvoke()
