@@ -1,10 +1,9 @@
-# Creates N screenings in Dynamics, then uses each screening's GUID to trigger a
-# Power Automate flow via the run-only apihub trigger endpoint (JSON body: {text, number}).
+# Creates N screenings in Dynamics, then adds a row per screening to the
+# TriggerCopyDataverseItemToSharePoint SharePoint list.
 #
 # Example usage:
 # .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://p365fedscreenqa.crm9.dynamics.com" `
 #     -TenantId "YOUR_TENANT_ID" -ClientId "YOUR_CLIENT_ID" `
-#     -FlowUrl "https://power-apis-usgov001-public.azure-apihub.us/apim/logicflows/<flow-guid>/triggers/manual/run?api-version=2016-11-01" `
 #     -Count 1000 -BatchSize 100
 
 param(
@@ -17,12 +16,12 @@ param(
     [Parameter(Mandatory)]
     [string]$ClientId,
 
-    # Power Automate run-only apihub trigger URL (from DevTools, not the flow details page link).
-    [Parameter(Mandatory)]
-    [string]$FlowUrl,
+    [string]$SharePointSiteUrl = 'https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE',
 
-    # Second field the trigger's JSON body expects alongside the screening GUID ({"text":<guid>,"number":FlowNumberValue}).
-    [int]$FlowNumberValue = -1,
+    [string]$SharePointListName = 'TriggerCopyDataverseItemToSharePoint',
+
+    # SumRptTemplateID value written to every SharePoint row (fixed for now, may change later).
+    [int]$SumRptTemplateId = -1,
 
     [string]$EntityPath = 'cr9da_fsn_screeningses',
 
@@ -44,8 +43,8 @@ if (-not ([System.Uri]::IsWellFormedUriString($EnvironmentUrl, [System.UriKind]:
     exit 1
 }
 
-if (-not ([System.Uri]::IsWellFormedUriString($FlowUrl, [System.UriKind]::Absolute))) {
-    Write-Error "FlowUrl '$FlowUrl' is not a valid URL."
+if (-not ([System.Uri]::IsWellFormedUriString($SharePointSiteUrl, [System.UriKind]::Absolute))) {
+    Write-Error "SharePointSiteUrl '$SharePointSiteUrl' is not a valid URL."
     exit 1
 }
 
@@ -155,40 +154,48 @@ while ($null -eq $accessToken) {
 
 Write-Host 'Authenticated successfully.'
 
-# The apihub trigger endpoint is a different resource than Dynamics, so it needs its own token
-# (audience = the apihub host itself, discovered from a captured browser request). Reuse the
+# SharePoint is a different resource than Dynamics, so it needs its own token. Reuse the
 # refresh token from the first login instead of prompting for a second interactive sign-in.
-$flowScope = ([System.Uri]$FlowUrl).GetLeftPart([System.UriPartial]::Authority) + '/.default'
+$sharePointScope = ([System.Uri]$SharePointSiteUrl).GetLeftPart([System.UriPartial]::Authority) + '/.default'
 
 if (-not $refreshToken) {
-    Write-Error 'No refresh token was returned from the first sign-in, so a token for the flow endpoint cannot be obtained silently.'
+    Write-Error 'No refresh token was returned from the first sign-in, so a token for SharePoint cannot be obtained silently.'
     exit 1
 }
 
-$flowTokenBody = @{
+$sharePointTokenBody = @{
     grant_type    = 'refresh_token'
     client_id     = $ClientId
     refresh_token = $refreshToken
-    scope         = $flowScope
+    scope         = $sharePointScope
 }
 
-$flowTokenResponse = Invoke-RestMethod `
+$sharePointTokenResponse = Invoke-RestMethod `
     -Method POST `
     -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-    -Body $flowTokenBody `
+    -Body $sharePointTokenBody `
     -ContentType 'application/x-www-form-urlencoded' `
     -ErrorAction Stop
 
-$flowAccessToken = $flowTokenResponse.access_token
+$sharePointAccessToken = $sharePointTokenResponse.access_token
 
-Write-Host 'Obtained flow trigger token silently via refresh token.'
+Write-Host 'Obtained SharePoint token silently via refresh token.'
 
-# Create screenings and trigger the flow, in batches
+# The list item __metadata type name is specific to this list, so look it up once up front.
+$sharePointListItemsUri = "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')/items"
+$listMeta = Invoke-RestMethod `
+    -Method GET `
+    -Uri "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')?`$select=ListItemEntityTypeFullName" `
+    -Headers @{ Authorization = "Bearer $sharePointAccessToken"; Accept = 'application/json;odata=verbose' } `
+    -ErrorAction Stop
+$sharePointListItemEntityType = $listMeta.d.ListItemEntityTypeFullName
+
+# Create screenings and add a row per screening to the SharePoint list, in batches
 
 $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
 $runDir = Join-Path $ResultsDir $timestamp
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
-$csvPath = Join-Path $runDir 'screening-flow-results.csv'
+$csvPath = Join-Path $runDir 'screening-sharepoint-results.csv'
 
 $createUri = $EnvironmentUrl.TrimEnd('/') + "/api/data/v9.0/$EntityPath"
 $indices = $StartIndex..($StartIndex + $Count - 1)
@@ -199,7 +206,7 @@ for ($i = 0; $i -lt $indices.Count; $i += $BatchSize) {
 
 # Runspace pools (not ForEach-Object -Parallel) so this also runs on Windows PowerShell 5.1.
 $workerScript = {
-    param($index, $accessToken, $createUri, $flowUrl, $flowAccessToken, $flowNumberValue, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
+    param($index, $accessToken, $createUri, $sharePointListItemsUri, $sharePointAccessToken, $sharePointListItemEntityType, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
 
     $firstName = "$firstNamePrefix$index"
     $lastName = "$lastNamePrefix$index"
@@ -211,12 +218,12 @@ $workerScript = {
     $body.cr9da_candidateemail = "$($firstName.ToLower())@$emailDomain"
 
     $result = [pscustomobject]@{
-        Index         = $index
-        ScreeningGuid = $null
-        CreateSuccess = $false
-        CreateError   = $null
-        FlowSuccess   = $false
-        FlowError     = $null
+        Index             = $index
+        ScreeningGuid     = $null
+        CreateSuccess     = $false
+        CreateError       = $null
+        SharePointSuccess = $false
+        SharePointError   = $null
     }
 
     try {
@@ -243,12 +250,27 @@ $workerScript = {
     }
 
     try {
-        $flowBody = @{ text = $result.ScreeningGuid; number = $flowNumberValue } | ConvertTo-Json
-        Invoke-RestMethod -Method POST -Uri $flowUrl -Headers @{ Authorization = "Bearer $flowAccessToken" } -ContentType 'application/json' -Body $flowBody -ErrorAction Stop | Out-Null
-        $result.FlowSuccess = $true
+        $spBody = @{
+            __metadata       = @{ type = $sharePointListItemEntityType }
+            Title            = "$lastName, $firstName"
+            FSN_ScreeningID  = $result.ScreeningGuid
+            SumRptTemplateID = $sumRptTemplateId
+        } | ConvertTo-Json
+
+        Invoke-RestMethod `
+            -Method POST `
+            -Uri $sharePointListItemsUri `
+            -Headers @{
+            Authorization = "Bearer $sharePointAccessToken"
+            Accept        = 'application/json;odata=verbose'
+        } `
+            -ContentType 'application/json;odata=verbose' `
+            -Body $spBody `
+            -ErrorAction Stop | Out-Null
+        $result.SharePointSuccess = $true
     }
     catch {
-        $result.FlowError = $_.Exception.Message
+        $result.SharePointError = $_.Exception.Message
     }
 
     return $result
@@ -267,7 +289,7 @@ foreach ($batch in $batches) {
     $jobs = foreach ($index in $batch) {
         $ps = [powershell]::Create()
         $ps.RunspacePool = $runspacePool
-        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($FlowUrl).AddArgument($flowAccessToken).AddArgument($FlowNumberValue).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
+        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($sharePointListItemsUri).AddArgument($sharePointAccessToken).AddArgument($sharePointListItemEntityType).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
         [pscustomobject]@{
             PowerShell = $ps
             Handle     = $ps.BeginInvoke()
@@ -285,20 +307,20 @@ foreach ($batch in $batches) {
     $allResults.AddRange(@($batchResults))
 
     $createdInBatch = @($batchResults | Where-Object CreateSuccess).Count
-    $triggeredInBatch = @($batchResults | Where-Object FlowSuccess).Count
-    Write-Host "  Created: $createdInBatch/$($batch.Count), Flow triggered: $triggeredInBatch/$($batch.Count)"
+    $addedInBatch = @($batchResults | Where-Object SharePointSuccess).Count
+    Write-Host "  Created: $createdInBatch/$($batch.Count), Added to SharePoint: $addedInBatch/$($batch.Count)"
 }
 
 $allResults | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
 
 $totalCreated = @($allResults | Where-Object CreateSuccess).Count
-$totalTriggered = @($allResults | Where-Object FlowSuccess).Count
-$totalFailed = $allResults.Count - $totalTriggered
+$totalAdded = @($allResults | Where-Object SharePointSuccess).Count
+$totalFailed = $allResults.Count - $totalAdded
 
 Write-Host ''
-Write-Host "Done. Screenings created: $totalCreated/$($allResults.Count). Flows triggered: $totalTriggered/$($allResults.Count)."
+Write-Host "Done. Screenings created: $totalCreated/$($allResults.Count). Added to SharePoint: $totalAdded/$($allResults.Count)."
 if ($totalFailed -gt 0) {
-    Write-Warning "$totalFailed record(s) had a create or flow-trigger failure. See $csvPath for per-record details."
+    Write-Warning "$totalFailed record(s) had a create or SharePoint failure. See $csvPath for per-record details."
 }
 else {
     Write-Host "Results saved to: $csvPath"
