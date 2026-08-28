@@ -154,58 +154,59 @@ while ($null -eq $accessToken) {
 
 Write-Host 'Authenticated successfully.'
 
-# SharePoint is a different resource than Dynamics, so it needs its own token. Reuse the
-# refresh token from the first login instead of prompting for a second interactive sign-in.
-$sharePointScope = ([System.Uri]$SharePointSiteUrl).GetLeftPart([System.UriPartial]::Authority) + '/.default'
-
+# SharePoint list writes go through Microsoft Graph (the legacy _api/ACS auth path is being
+# retired tenant by tenant), so this needs its own token. Reuse the refresh token from the
+# first login instead of prompting for a second interactive sign-in.
 if (-not $refreshToken) {
-    Write-Error 'No refresh token was returned from the first sign-in, so a token for SharePoint cannot be obtained silently.'
+    Write-Error 'No refresh token was returned from the first sign-in, so a token for Graph cannot be obtained silently.'
     exit 1
 }
 
-$sharePointTokenBody = @{
+$graphTokenBody = @{
     grant_type    = 'refresh_token'
     client_id     = $ClientId
     refresh_token = $refreshToken
-    scope         = $sharePointScope
+    scope         = 'https://graph.microsoft.com/.default'
 }
 
-$sharePointTokenResponse = Invoke-RestMethod `
+$graphTokenResponse = Invoke-RestMethod `
     -Method POST `
     -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-    -Body $sharePointTokenBody `
+    -Body $graphTokenBody `
     -ContentType 'application/x-www-form-urlencoded' `
     -ErrorAction Stop
 
-$sharePointAccessToken = $sharePointTokenResponse.access_token
+$graphAccessToken = $graphTokenResponse.access_token
 
-Write-Host 'Obtained SharePoint token silently via refresh token.'
+Write-Host 'Obtained Graph token silently via refresh token.'
 
-# The list item __metadata type name is specific to this list, so look it up once up front.
-$sharePointListItemsUri = "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')/items"
+# Resolve the site and list once up front via Graph's site-by-path and list-by-name lookups.
+$siteUri = [System.Uri]$SharePointSiteUrl
+$sitePath = $siteUri.AbsolutePath.Trim('/')
 try {
-    $listMeta = Invoke-RestMethod `
+    $site = Invoke-RestMethod `
         -Method GET `
-        -Uri "$($SharePointSiteUrl.TrimEnd('/'))/_api/web/lists/GetByTitle('$SharePointListName')?`$select=ListItemEntityTypeFullName" `
-        -Headers @{ Authorization = "Bearer $sharePointAccessToken"; Accept = 'application/json;odata=verbose' } `
+        -Uri "https://graph.microsoft.com/v1.0/sites/$($siteUri.Host):/$($sitePath)" `
+        -Headers @{ Authorization = "Bearer $graphAccessToken" } `
         -ErrorAction Stop
+
+    $list = Invoke-RestMethod `
+        -Method GET `
+        -Uri "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists?`$filter=displayName eq '$SharePointListName'" `
+        -Headers @{ Authorization = "Bearer $graphAccessToken" } `
+        -ErrorAction Stop
+
+    if (-not $list.value -or $list.value.Count -eq 0) {
+        Write-Error "List '$SharePointListName' was not found on site '$SharePointSiteUrl'."
+        exit 1
+    }
 }
 catch {
-    Write-Error "Failed to look up the SharePoint list: $($_.Exception.Message)"
-    $wwwAuth = $_.Exception.Response.Headers['WWW-Authenticate']
-    if ($wwwAuth) { Write-Host "WWW-Authenticate: $wwwAuth" }
-
-    # Decode the token claims here (instead of asking for a separate command) since
-    # $sharePointAccessToken doesn't survive past this script exiting.
-    $tokenParts = $sharePointAccessToken.Split('.')
-    $tokenPayload = $tokenParts[1].Replace('-', '+').Replace('_', '/')
-    switch ($tokenPayload.Length % 4) { 2 { $tokenPayload += '==' } 3 { $tokenPayload += '=' } }
-    $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($tokenPayload)) | ConvertFrom-Json
-    Write-Host "SharePoint token claims: aud=$($claims.aud) appid=$($claims.appid) scp=$($claims.scp) roles=$($claims.roles)"
-
+    Write-Error "Failed to look up the SharePoint site/list via Graph: $($_.Exception.Message)"
     exit 1
 }
-$sharePointListItemEntityType = $listMeta.d.ListItemEntityTypeFullName
+
+$sharePointListItemsUri = "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists/$($list.value[0].id)/items"
 
 # Create screenings and add a row per screening to the SharePoint list, in batches
 
@@ -223,7 +224,7 @@ for ($i = 0; $i -lt $indices.Count; $i += $BatchSize) {
 
 # Runspace pools (not ForEach-Object -Parallel) so this also runs on Windows PowerShell 5.1.
 $workerScript = {
-    param($index, $accessToken, $createUri, $sharePointListItemsUri, $sharePointAccessToken, $sharePointListItemEntityType, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
+    param($index, $accessToken, $createUri, $sharePointListItemsUri, $graphAccessToken, $sumRptTemplateId, $firstNamePrefix, $lastNamePrefix, $emailDomain, $staticScreeningFields)
 
     $firstName = "$firstNamePrefix$index"
     $lastName = "$lastNamePrefix$index"
@@ -268,20 +269,18 @@ $workerScript = {
 
     try {
         $spBody = @{
-            __metadata       = @{ type = $sharePointListItemEntityType }
-            Title            = "$lastName, $firstName"
-            FSN_ScreeningID  = $result.ScreeningGuid
-            SumRptTemplateID = $sumRptTemplateId
-        } | ConvertTo-Json
+            fields = @{
+                Title            = "$lastName, $firstName"
+                FSN_ScreeningID  = $result.ScreeningGuid
+                SumRptTemplateID = $sumRptTemplateId
+            }
+        } | ConvertTo-Json -Depth 5
 
         Invoke-RestMethod `
             -Method POST `
             -Uri $sharePointListItemsUri `
-            -Headers @{
-            Authorization = "Bearer $sharePointAccessToken"
-            Accept        = 'application/json;odata=verbose'
-        } `
-            -ContentType 'application/json;odata=verbose' `
+            -Headers @{ Authorization = "Bearer $graphAccessToken" } `
+            -ContentType 'application/json' `
             -Body $spBody `
             -ErrorAction Stop | Out-Null
         $result.SharePointSuccess = $true
@@ -306,7 +305,7 @@ foreach ($batch in $batches) {
     $jobs = foreach ($index in $batch) {
         $ps = [powershell]::Create()
         $ps.RunspacePool = $runspacePool
-        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($sharePointListItemsUri).AddArgument($sharePointAccessToken).AddArgument($sharePointListItemEntityType).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
+        [void]$ps.AddScript($workerScript).AddArgument($index).AddArgument($accessToken).AddArgument($createUri).AddArgument($sharePointListItemsUri).AddArgument($graphAccessToken).AddArgument($SumRptTemplateId).AddArgument($CandidateFirstNamePrefix).AddArgument($CandidateLastNamePrefix).AddArgument($CandidateEmailDomain).AddArgument($staticScreeningFields)
         [pscustomobject]@{
             PowerShell = $ps
             Handle     = $ps.BeginInvoke()
