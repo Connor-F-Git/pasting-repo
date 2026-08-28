@@ -1,5 +1,1 @@
-$token = "<paste the token here, run locally, don't paste back to me>"
-$payload = $token.Split('.')[1]
-$payload += '=' * ((4 - $payload.Length % 4) % 4)
-$bytes = [Convert]::FromBase64String($payload.Replace('-','+').Replace('_','/'))
-($bytes | ForEach-Object { [char]$_ }) -join '' | ConvertFrom-Json | Select-Object aud, appid, scp
+https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE/Lists/TriggerCopyDataverseItemToSharePoint/AllItems.aspx
