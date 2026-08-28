@@ -1,7 +1,10 @@
 Authenticated successfully.
 Obtained Graph token silently via refresh token.
+Resolved site: https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE [id=frbprod1.sharepoint.com,810dd8a8-4182-4121-8c0e-b125b357d677,b48eeace-af3c-4fc5-9e9c-18afe6d5b245]
+Graph returned 0 list(s) for this site.
 C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Create-Screenings-and-Trigger-Flow.ps1 : List 'TriggerCopyDataverseItemToSharePoint' was not 
-found on site 'https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE'.
+found on site 'https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE'. Available lists:
+  
 At line:1 char:1
 + .\Create-Screenings-and-Trigger-Flow.ps1 -EnvironmentUrl "https://org ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
