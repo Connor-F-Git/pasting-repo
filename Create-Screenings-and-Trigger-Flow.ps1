@@ -192,11 +192,15 @@ try {
         -Headers @{ Authorization = "Bearer $graphAccessToken" } `
         -ErrorAction Stop
 
+    Write-Host "Resolved site: $($site.webUrl) [id=$($site.id)]"
+
     $lists = Invoke-RestMethod `
         -Method GET `
         -Uri "https://graph.microsoft.com/v1.0/sites/$($site.id)/lists?`$select=id,name,displayName&`$top=999" `
         -Headers @{ Authorization = "Bearer $graphAccessToken" } `
         -ErrorAction Stop
+
+    Write-Host "Graph returned $($lists.value.Count) list(s) for this site."
 
     $matchedList = $lists.value | Where-Object { $_.name -eq $SharePointListName -or $_.displayName -eq $SharePointListName }
 
