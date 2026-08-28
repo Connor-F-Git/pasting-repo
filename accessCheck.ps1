@@ -3,8 +3,8 @@ $tenantName = "YOUR_TENANT_NAME"
 $siteUrl    = "https://$tenantName.sharepoint.com/sites/SYS-FDR/STAGE"
 $listUrl    = "/sites/SYS-FDR/STAGE/Lists/TriggerCopyDataverseItemToSharePoint"
 
-# Standard Microsoft Azure CLI App ID used to trigger device code auth
-$clientId   = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+# Standard PnP Management Shell Client ID used to trigger device code auth
+$clientId   = "31359c7f-bd7e-475c-86b6-3e148d28200e"
 $scope      = "https://$tenantName.sharepoint.com/.default"
 
 # 2. REQUEST DEVICE CODE FOR AUTHENTICATION
