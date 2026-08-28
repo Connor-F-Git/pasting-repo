@@ -1,1 +1,4 @@
-https://frbprod1.sharepoint.com/sites/SYS-FDR/STAGE/Lists/TriggerCopyDataverseItemToSharePoint/AllItems.aspx
+$parts = $sharePointAccessToken.Split('.')
+$payload = $parts[1].Replace('-', '+').Replace('_', '/')
+switch ($payload.Length % 4) { 2 { $payload += '==' } 3 { $payload += '=' } }
+[System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json | Select-Object aud, appid, scp
