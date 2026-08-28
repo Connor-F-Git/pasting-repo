@@ -1,3 +1,4 @@
+Authenticated successfully.
 Obtained SharePoint token silently via refresh token.
 C:\Users\C1CXF05\Documents\JMeter_Auth_Automation\Create-Screenings-and-Trigger-Flow.ps1 : Failed to look up the SharePoint list: The remote server 
 returned an error: (401) Unauthorized.
@@ -8,3 +9,4 @@ At line:1 char:1
     + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Create-Screenings-and-Trigger-Flow.ps1
  
 WWW-Authenticate: Bearer realm="b397c653-5b19-463f-b9fc-af658ded9128",client_id="00000003-0000-0ff1-ce00-000000000000",trusted_issuers="00000001-0000-0000-c000-000000000000@*,D3776938-3DBA-481F-A652-4BEDFCAB7CD8@*,https://sts.windows.net/*/,https://login.microsoftonline.com/*/v2.0,00000003-0000-0ff1-ce00-000000000000@90140122-8516-11e1-8eff-49304924019b",authorization_uri="https://login.microsoftonline.com/common/oauth2/authorize"
+SharePoint token claims: aud=00000003-0000-0ff1-ce00-000000000000 appid=1950a258-227b-4e31-a9cf-717495945fc2 scp=user_impersonation roles=
