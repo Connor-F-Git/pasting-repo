@@ -1,1 +1,1 @@
-sudo dmesg | grep -iE "usb|uas|reset|disconnect"
+udevadm info -a -n /dev/sdb | grep -E "idVendor|idProduct" | head -n 2
