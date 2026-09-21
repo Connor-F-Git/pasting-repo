@@ -1,1 +1,1 @@
-sudo journalctl -r | grep -iE "umount|udisks|ext4|ntfs|error"
+sudo journalctl -b | grep -iE "umount|udisks"
