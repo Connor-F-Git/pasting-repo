@@ -1,1 +1,1 @@
-sudo journalctl -b | grep -iE "umount|udisks"
+sudo dmesg | grep -iE "usb|uas|reset|disconnect"
