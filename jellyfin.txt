@@ -5,3 +5,9 @@ udevadm info -a -n /dev/sdb | grep -E "idVendor|idProduct" | head -n 2
 
 
 echo "options usb-storage quirks=1356:174c:u" | sudo tee /etc/modprobe.d/disable-uas.conf
+
+
+
+
+
+sudo update-initramfs -u
