@@ -1,1 +1,1 @@
-journalctl | grep -i "unmounted" and journalctl -u udisks2
+sudo journalctl -r | grep -iE "umount|udisks|ext4|ntfs|error"
