@@ -1,1 +1,1 @@
-Get-ChildItem -Directory | ForEach-Object { Compress-Archive -LiteralPath \(_.FullName -DestinationPath "\)($_.FullName).zip" -Force }
+Get-ChildItem -Directory | ForEach-Object { \(zipName =\)_.FullName + '.zip'; Compress-Archive -LiteralPath \(_.FullName -DestinationPath\)zipName }
