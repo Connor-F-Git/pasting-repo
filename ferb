@@ -1,1 +1,1 @@
-foreach (\(dir in Get-ChildItem -Directory) { Compress-Archive -LiteralPath\)dir.FullName -DestinationPath ($dir.FullName + ".zip") }
+foreach (\(Folder in Get-ChildItem -Directory) { Compress-Archive -Path\)Folder.FullName -DestinationPath ($Folder.FullName + ".zip") }
