@@ -1,4 +1,1 @@
-$parts = $sharePointAccessToken.Split('.')
-$payload = $parts[1].Replace('-', '+').Replace('_', '/')
-switch ($payload.Length % 4) { 2 { $payload += '==' } 3 { $payload += '=' } }
-[System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json | Select-Object aud, appid, scp
+Get-ChildItem -Directory | ForEach-Object { Compress-Archive -LiteralPath \(_.FullName -DestinationPath "\)($_.FullName).zip" -Force }
