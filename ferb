@@ -1,1 +1,75 @@
-Get-ChildItem -Directory | ForEach-Object { Compress-Archive -Path $_.FullName -DestinationPath "$($_.FullName).zip" }
+=437, status=1, subStatus=null, jobType=1}
+2026-06-17 13:07:30,084 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Metadata Generation
+2026-06-17 13:07:30,645 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Metadata Generation completed (0.562 sec)
+2026-06-17 13:07:30,646 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Setting up sandbox
+2026-06-17 13:07:35,051 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Setting up sandbox completed (4.406 sec)
+2026-06-17 13:07:35,070 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Incremental code Generation
+2026-06-17 13:07:35,573 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Incremental code Generation completed (0.522 sec)
+2026-06-17 13:07:35,574 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Updating sandbox
+2026-06-17 13:07:35,600 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121954: Updated sandbox (0.027 sec)
+2026-06-17 13:07:35,606 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121954: Compilation started
+2026-06-17 13:07:45,813 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121954: Compilation Done....121954 in 10.212 sec
+2026-06-17 13:07:45,828 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121954: Test Execution started
+2026-06-17 13:33:27,098 INFO com.accelq.agent.service.AQYYuanPPHUY [scheduling-7] 121954: Test Execution completed
+2026-06-17 13:33:27,099 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-7] 121954: TestJobResultsAndStalenessCheckThread.processResultFiles: removing from queue and cleaning up local project folder
+2026-06-17 13:33:28,046 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-8] run_121954: cleaning up local storage folder
+2026-06-17 13:58:02,112 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Updating status from NEW to SETUP : ProjectTestJob{jobPid=121964, jobPurpose=Test Suite - CCO (Mobile), projectName=PHL_SQA_3SRC_Websites_Redesign, tenantCode=frb, projectPid=437, status=1, subStatus=null, jobType=1}
+2026-06-17 13:58:02,113 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Metadata Generation
+2026-06-17 13:58:02,714 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Metadata Generation completed (0.601 sec)
+2026-06-17 13:58:02,715 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Setting up sandbox
+2026-06-17 13:58:06,361 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Setting up sandbox completed (3.647 sec)
+2026-06-17 13:58:06,381 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Incremental code Generation
+2026-06-17 13:58:08,195 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Incremental code Generation completed (1.834 sec)
+2026-06-17 13:58:08,195 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Updating sandbox
+2026-06-17 13:58:08,268 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121964: Updated sandbox (0.073 sec)
+2026-06-17 13:58:08,274 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121964: Compilation started
+2026-06-17 13:58:19,277 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121964: Compilation Done....121964 in 11.009 sec
+2026-06-17 13:58:19,291 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121964: Test Execution started
+2026-06-17 14:23:09,590 WARN com.accelq.agent.service.AQuSwSUcKrgr [scheduling-10] Failed to delete file: C:\Users\C1CXF05\ACCELQAgent\AgentInstances\agent\app_data\storage\frb\PHL_SQA_3SRC_Websites_Redesign\run_121964\aq_run.log
+2026-06-17 14:23:09,945 INFO com.accelq.agent.service.AQYYuanPPHUY [scheduling-10] 121964: Test Execution completed
+2026-06-17 14:23:09,946 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-10] 121964: TestJobResultsAndStalenessCheckThread.processResultFiles: removing from queue and cleaning up local project folder
+2026-06-17 14:23:10,738 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-9] run_121964: cleaning up local storage folder
+2026-06-17 14:25:34,115 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Updating status from NEW to SETUP : ProjectTestJob{jobPid=121976, jobPurpose=Test Suite - CCO (Mobile), projectName=PHL_SQA_3SRC_Websites_Redesign, tenantCode=frb, projectPid=437, status=1, subStatus=null, jobType=1}
+2026-06-17 14:25:34,116 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Metadata Generation
+2026-06-17 14:25:34,584 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Metadata Generation completed (0.468 sec)
+2026-06-17 14:25:34,584 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Setting up sandbox
+2026-06-17 14:25:38,203 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Setting up sandbox completed (3.619 sec)
+2026-06-17 14:25:38,223 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Incremental code Generation
+2026-06-17 14:25:38,793 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Incremental code Generation completed (0.590 sec)
+2026-06-17 14:25:38,794 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Updating sandbox
+2026-06-17 14:25:38,837 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-3] 121976: Updated sandbox (0.044 sec)
+2026-06-17 14:25:38,841 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-3] 121976: Compilation started
+2026-06-17 14:25:48,105 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-3] 121976: Compilation Done....121976 in 9.268 sec
+2026-06-17 14:25:48,121 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-3] 121976: Test Execution started
+2026-06-17 14:27:49,427 WARN com.accelq.agent.service.AQuSwSUcKrgr [scheduling-2] Failed to delete file: C:\Users\C1CXF05\ACCELQAgent\AgentInstances\agent\app_data\storage\frb\PHL_SQA_3SRC_Websites_Redesign\run_121976\aq_run.log
+2026-06-17 14:27:49,786 INFO com.accelq.agent.service.AQYYuanPPHUY [scheduling-2] 121976: Test Execution completed
+2026-06-17 14:27:49,787 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-2] 121976: TestJobResultsAndStalenessCheckThread.processResultFiles: removing from queue and cleaning up local project folder
+2026-06-17 14:27:50,882 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-4] run_121976: cleaning up local storage folder
+2026-06-17 14:43:22,106 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Updating status from NEW to SETUP : ProjectTestJob{jobPid=121987, jobPurpose=Test Suite - CCO (Mobile), projectName=PHL_SQA_3SRC_Websites_Redesign, tenantCode=frb, projectPid=437, status=1, subStatus=null, jobType=1}
+2026-06-17 14:43:22,107 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Metadata Generation
+2026-06-17 14:43:22,539 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Metadata Generation completed (0.432 sec)
+2026-06-17 14:43:22,539 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Setting up sandbox
+2026-06-17 14:43:25,347 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Setting up sandbox completed (2.808 sec)
+2026-06-17 14:43:25,360 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Incremental code Generation
+2026-06-17 14:43:25,914 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Incremental code Generation completed (0.567 sec)
+2026-06-17 14:43:25,914 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Updating sandbox
+2026-06-17 14:43:25,947 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121987: Updated sandbox (0.033 sec)
+2026-06-17 14:43:25,950 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121987: Compilation started
+2026-06-17 14:43:35,691 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121987: Compilation Done....121987 in 9.744 sec
+2026-06-17 14:43:35,710 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121987: Test Execution started
+2026-06-17 14:45:03,670 INFO com.accelq.agent.service.AQYYuanPPHUY [scheduling-4] 121987: Test Execution completed
+2026-06-17 14:45:03,670 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-4] 121987: TestJobResultsAndStalenessCheckThread.processResultFiles: removing from queue and cleaning up local project folder
+2026-06-17 14:45:04,471 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-9] run_121987: cleaning up local storage folder
+2026-06-17 14:52:10,121 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Updating status from NEW to SETUP : ProjectTestJob{jobPid=121989, jobPurpose=Test Suite - CCO (Browser), projectName=PHL_SQA_3SRC_Websites_Redesign, tenantCode=frb, projectPid=437, status=1, subStatus=null, jobType=1}
+2026-06-17 14:52:10,122 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Metadata Generation
+2026-06-17 14:52:10,760 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Metadata Generation completed (0.638 sec)
+2026-06-17 14:52:10,761 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Setting up sandbox
+2026-06-17 14:52:13,255 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Setting up sandbox completed (2.495 sec)
+2026-06-17 14:52:13,274 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Incremental code Generation
+2026-06-17 14:52:13,410 INFO com.accelq.agent.service.AQEfyYSfDE7n [AQAgent-1] 121989: Incremental code Generation completed (0.155 sec)
+2026-06-17 14:52:13,416 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121989: Compilation started
+2026-06-17 14:52:26,912 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121989: Compilation Done....121989 in 13.501 sec
+2026-06-17 14:52:26,927 INFO com.accelq.agent.service.AQPqrzCCmkHy [AQAgent-1] 121989: Test Execution started
+2026-06-17 15:16:22,052 INFO com.accelq.agent.service.AQYYuanPPHUY [scheduling-1] 121989: Test Execution completed
+2026-06-17 15:16:22,054 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-1] 121989: TestJobResultsAndStalenessCheckThread.processResultFiles: removing from queue and cleaning up local project folder
+2026-06-17 15:16:23,723 INFO com.accelq.agent.service.AQEfyYSfDE7n [scheduling-2] run_121989: cleaning up local storage folder
